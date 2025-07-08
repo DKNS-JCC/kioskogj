@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Ajustes - Kiosko Campamento</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- SheetJS para manejo de Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div class="setup-container">
+    <h1 style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <button onclick="window.location.href='index.html'" class="btn-back" style="margin:0 10px 0 0;min-width:unset;padding:10px 18px;font-size:1.1rem;">← Volver</button>
+      <span style="flex:1;text-align:center;">Ajustes</span>
+      <span style="width:110px;"></span>
+    </h1>
+
+    <!-- Nueva sección para configuración general -->
+    <div class="setup-section config-section">
+      <h2>Gasto recomendado</h2>
+      <form id="form-config" class="setup-form">
+        <div class="form-row">
+          <input type="number" id="cota-diaria" placeholder="Cota diaria recomendada (€)" step="0.1" min="0" required>
+          <button type="submit" class="btn-add">Guardar</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Secciones de añadir en paralelo -->
+    
+
+    <div class="setup-section">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <i class="fa-solid fa-children" style="color:#4338ca;font-size:1.3em;"></i>
+        <h2 style="margin:0;font-size:1.3em;color:#4338ca;">Niños registrados</h2>
+      </div>
+      <div class="filters-section" style="margin-bottom:18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; align-items: end;">
+        <div class="filter-group" style="margin-bottom:0;">
+          <label for="buscar-nombre" style="font-weight:600;color:#475569;font-size:0.97em;">Buscar</label>
+          <input type="text" id="buscar-nombre" placeholder="Buscar por nombre...">
+        </div>
+        <div class="filter-group" style="margin-bottom:0;">
+          <label for="filtrar-grupo" style="font-weight:600;color:#475569;font-size:0.97em;">Grupo</label>
+          <select id="filtrar-grupo">
+            <option value="">Todos los grupos</option>
+          </select>
+        </div>
+        <div class="filter-group" style="margin-bottom:0;">
+          <label for="ordenar-ninos" style="font-weight:600;color:#475569;font-size:0.97em;">Ordenar</label>
+          <select id="ordenar-ninos">
+            <option value="">Ordenar por...</option>
+            <option value="saldo-desc">Saldo (mayor a menor)</option>
+            <option value="saldo-asc">Saldo (menor a mayor)</option>
+            <option value="grupo-asc">Grupo (ascendente)</option>
+            <option value="grupo-desc">Grupo (descendente)</option>
+            <option value="nombre-asc">Nombre (A-Z)</option>
+            <option value="nombre-desc">Nombre (Z-A)</option>
+          </select>
+        </div>
+      </div>
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:0 0 18px 0;">
+      <div id="lista-ninos" class="ninos-grid"></div>
+    </div>
+
+    <div class="setup-section">
+      <h2>Productos registrados</h2>
+      <div id="lista-productos" class="productos-grid"></div>
+    </div>
+    <div class="add-sections-grid">
+      <div class="setup-section nino-section">
+        <div class="section-header-with-button">
+          <h2>Registrar niño</h2>
+          <button type="button" class="btn-toggle-form" id="toggle-form-nino">+ Pulsa Aqui</button>
+        </div>
+        <form id="form-nino" class="setup-form" style="display: none;">
+          <div class="form-row">
+            <input type="text" id="nino-nombre" placeholder="Nombre" required>
+            <input type="text" id="nino-apellidos" placeholder="Apellidos" required>
+          </div>
+          <div class="form-row">
+            <input type="number" id="nino-grupo" placeholder="Grupo (número)" step="1" min="1" required>
+            <input type="number" id="nino-dinero" placeholder="Dinero inicial (€)" step="0.1" required>
+          </div>
+          <div class="form-row form-actions">
+            <button type="button" style="width: 33%;" class="btn-cancel" onclick="toggleForm('form-nino')">Cancelar</button>
+            <button type="submit" style="width: 100%;" class="btn-add">Guardar niño</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="setup-section producto-section">
+        <div class="section-header-with-button">
+          <h2>Añadir producto</h2>
+          <button type="button" class="btn-toggle-form" id="toggle-form-producto">+ Pulsa Aqui</button>
+        </div>
+        <form id="form-producto" class="setup-form" style="display: none;">
+          <div class="form-row">
+            <input type="text" id="producto-nombre" placeholder="Nombre del producto" required>
+            <input type="number" id="producto-precio" placeholder="Precio (€)" step="0.1" required>
+          </div>
+          <div class="form-row form-actions">
+            <button type="button" class="btn-cancel" style="width: 33%;" onclick="toggleForm('form-producto')">Cancelar</button>
+            <button type="submit" style="width: 100%;" class="btn-add">Guardar producto</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Botones de importar/exportar Excel al final -->
+    <div class="excel-actions">
+      <input type="file" id="importar-excel" accept=".xlsx,.xls" style="display:none">
+      <button id="btn-importar-excel" type="button">📥 Importar Excel</button>
+      <button id="btn-exportar-excel" type="button">📤 Exportar Excel</button>
+    </div>
+
+    <div class="setup-actions">
+      <button onclick="window.location.href='index.html'" class="btn-back">← Volver al kiosko</button>
+      <button onclick="window.location.href='stats.html'" class="btn-stats">📊 Ver estadísticas</button>
+    </div>
+  </div>
+
+
+  <script>
+    // Mostrar bytes de la base de datos (opcional, igual que antes)
+    fetch('./data/database.db')
+      .then(response => {
+        if (!response.ok) throw new Error('No se pudo leer la base de datos');
+        return response.arrayBuffer();
+      })
+      .then(buffer => {
+        // Mostrar los primeros bytes en hexadecimal como ejemplo
+        const bytes = new Uint8Array(buffer);
+        let hex = '';
+        for (let i = 0; i < Math.min(256, bytes.length); i++) {
+          hex += bytes[i].toString(16).padStart(2, '0') + ' ';
+          if ((i+1) % 16 === 0) hex += '\n';
+        }
+        document.getElementById('db-content').textContent = hex || 'Base de datos vacía';
+      })
+      .catch(err => {
+        document.getElementById('db-content').textContent = 'Error: ' + err.message;
+      });
+
+    // --- Sistema para añadir niños usando backend ---
+    let todosLosNinos = [];
+
+    function cargarNinos() {
+      fetch('/api/ninos')
+        .then(res => res.json())
+        .then(ninos => {
+          todosLosNinos = ninos;
+          actualizarFiltroGrupos();
+          mostrarNinos(ninos);
+        });
+    }
+
+    function actualizarFiltroGrupos() {
+      const grupos = [...new Set(todosLosNinos.map(n => n.grupo))];
+      const filtroGrupo = document.getElementById('filtrar-grupo');
+      filtroGrupo.innerHTML = '<option value="">Todos los grupos</option>';
+      grupos.forEach(grupo => {
+        const opt = document.createElement('option');
+        opt.value = grupo;
+        opt.textContent = grupo;
+        filtroGrupo.appendChild(opt);
+      });
+    }
+
+    function mostrarNinos(ninos) {
+      const container = document.getElementById('lista-ninos');
+      container.innerHTML = '';
+      if (ninos.length === 0) {
+        container.innerHTML = '<p class="empty-state">No se encontraron niños</p>';
+        return;
+      }
+      // Agrupar por grupo
+      const grupos = {};
+      ninos.forEach(nino => {
+        if (!grupos[nino.grupo]) grupos[nino.grupo] = [];
+        grupos[nino.grupo].push(nino);
+      });
+      // Ordenar grupos numéricamente
+      const gruposOrdenados = Object.keys(grupos).sort((a, b) => parseInt(a) - parseInt(b));
+      gruposOrdenados.forEach(grupo => {
+        const grupoDiv = document.createElement('div');
+        grupoDiv.className = 'grupo-ninos-horizontal';
+        // Título del grupo
+        const titulo = document.createElement('h3');
+        titulo.className = 'grupo-titulo';
+        titulo.textContent = `Grupo ${grupo}`;
+        grupoDiv.appendChild(titulo);
+        // Fila horizontal de niños
+        const row = document.createElement('div');
+        row.className = 'ninos-row';
+        grupos[grupo].forEach(nino => {
+          const card = document.createElement('div');
+          card.className = 'nino-card';
+          card.innerHTML = `
+            <div class="nino-content" id="content-${nino.id}">
+              <div class="nino-info">
+                <h3>${nino.nombre} ${nino.apellidos}</h3>
+                <p><span class="badge">Grupo ${nino.grupo}</span></p>
+                <p class="saldo">${nino.dinero.toFixed(2)}€</p>
+              </div>
+              <div class="nino-actions">
+                <button class="btn-edit" onclick="toggleEdit(${nino.id}, 'nino')" title="Editar">
+                  ✏️
+                </button>
+                <button class="btn-delete" onclick="eliminarItem(${nino.id}, 'nino', '${nino.nombre} ${nino.apellidos}')" title="Eliminar">
+                  🗑️
+                </button>
+              </div>
+            </div>
+            <div class="edit-mode" id="edit-${nino.id}" style="display: none;">
+              <div class="edit-form">
+                <div class="form-group">
+                  <label>Nombre:</label>
+                  <input type="text" id="edit-nombre-${nino.id}" value="${nino.nombre}">
+                </div>
+                <div class="form-group">
+                  <label>Apellidos:</label>
+                  <input type="text" id="edit-apellidos-${nino.id}" value="${nino.apellidos}">
+                </div>
+                <div class="form-group">
+                  <label>Grupo:</label>
+                  <input type="number" id="edit-grupo-${nino.id}" value="${nino.grupo}" min="1">
+                </div>
+                <div class="form-group">
+                  <label>Dinero:</label>
+                  <input type="number" id="edit-dinero-${nino.id}" value="${nino.dinero}" step="0.1" min="0">
+                </div>
+                <div class="edit-actions">
+                  <button class="btn-save" onclick="guardarCambios(${nino.id}, 'nino')">
+                     Guardar
+                  </button>
+                  <button class="btn-cancel" onclick="cancelarEdicion(${nino.id})">
+                     Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+          row.appendChild(card);
+        });
+        grupoDiv.appendChild(row);
+        container.appendChild(grupoDiv);
+      });
+    }
+
+    function filtrarNinos() {
+      const busqueda = document.getElementById('buscar-nombre').value.toLowerCase();
+      const grupoSeleccionado = document.getElementById('filtrar-grupo').value;
+      const orden = document.getElementById('ordenar-ninos').value;
+
+      let ninosFiltrados = todosLosNinos;
+
+      if (busqueda) {
+        ninosFiltrados = ninosFiltrados.filter(nino =>
+          nino.nombre.toLowerCase().includes(busqueda) ||
+          nino.apellidos.toLowerCase().includes(busqueda)
+        );
+      }
+
+      if (grupoSeleccionado) {
+        ninosFiltrados = ninosFiltrados.filter(nino => nino.grupo.toString() === grupoSeleccionado);
+      }
+
+      // Ordenar según el desplegable
+      if (orden === 'saldo-desc') {
+        ninosFiltrados = ninosFiltrados.slice().sort((a, b) => b.dinero - a.dinero);
+      } else if (orden === 'saldo-asc') {
+        ninosFiltrados = ninosFiltrados.slice().sort((a, b) => a.dinero - b.dinero);
+      } else if (orden === 'grupo-asc') {
+        ninosFiltrados = ninosFiltrados.slice().sort((a, b) => a.grupo - b.grupo);
+      } else if (orden === 'grupo-desc') {
+        ninosFiltrados = ninosFiltrados.slice().sort((a, b) => b.grupo - a.grupo);
+      } else if (orden === 'nombre-asc') {
+        ninosFiltrados = ninosFiltrados.slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', {sensitivity:'base'}));
+      } else if (orden === 'nombre-desc') {
+        ninosFiltrados = ninosFiltrados.slice().sort((a, b) => b.nombre.localeCompare(a.nombre, 'es', {sensitivity:'base'}));
+      } else if (orden === 'apellido-asc') {
+        ninosFiltrados = ninosFiltrados.slice().sort((a, b) => a.apellidos.localeCompare(b.apellidos, 'es', {sensitivity:'base'}));
+      } else if (orden === 'apellido-desc') {
+        ninosFiltrados = ninosFiltrados.slice().sort((a, b) => b.apellidos.localeCompare(a.apellidos, 'es', {sensitivity:'base'}));
+      }
+
+      mostrarNinos(ninosFiltrados);
+    }
+
+    // Event listeners para filtros
+    document.getElementById('buscar-nombre').addEventListener('input', filtrarNinos);
+    document.getElementById('filtrar-grupo').addEventListener('change', filtrarNinos);
+    document.getElementById('ordenar-ninos').addEventListener('change', filtrarNinos);
+
+    document.getElementById('form-nino').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const nombre = document.getElementById('nino-nombre').value.trim();
+      const apellidos = document.getElementById('nino-apellidos').value.trim();
+      const grupo = parseInt(document.getElementById('nino-grupo').value, 10);
+      const dinero = parseFloat(document.getElementById('nino-dinero').value);
+
+      // Validar campos antes de enviar
+      if (!nombre || !apellidos || isNaN(grupo) || grupo <= 0 || isNaN(dinero) || dinero < 0) {
+        alert('Por favor, completa todos los campos correctamente.');
+        return;
+      }
+
+      // Enviar datos al backend
+      fetch('/api/ninos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, apellidos, grupo, dinero })
+      })
+      .then(res => res.json())
+      .then(resp => {
+        if (resp.success) {
+          cargarNinos();
+          this.reset();
+          // Mostrar feedback visual
+          const btn = this.querySelector('button');
+          const originalText = btn.textContent;
+          btn.textContent = '✅ Añadido';
+          btn.style.background = '#28a745';
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.background = '';
+          }, 2000);
+        } else {
+          alert('Error: ' + (resp.error || 'No se pudo añadir'));
+        }
+      })
+      .catch(err => {
+        alert('Error de conexión con el servidor.');
+      });
+    });
+
+    // --- Sistema para añadir productos usando backend ---
+    function cargarProductos() {
+      fetch('/api/productos')
+        .then(res => res.json())
+        .then(productos => {
+          const container = document.getElementById('lista-productos');
+          container.innerHTML = '';
+          if (productos.length === 0) {
+            container.innerHTML = '<p class="empty-state">No se encontraron productos</p>';
+            return;
+          }
+          productos.forEach(producto => {
+            const card = document.createElement('div');
+            card.className = 'producto-card';
+            card.innerHTML = `
+              <div class="producto-content" id="content-producto-${producto.id}">
+                <div class="producto-info">
+                  <h3>${producto.nombre}</h3>
+                  <p class="precio">${producto.precio.toFixed(2)}€</p>
+                </div>
+                <div class="producto-actions">
+                  <button class="btn-edit" onclick="toggleEdit(${producto.id}, 'producto')" title="Editar">
+                    ✏️
+                  </button>
+                  <button class="btn-delete" onclick="eliminarItem(${producto.id}, 'producto', '${producto.nombre}')" title="Eliminar">
+                    🗑️
+                  </button>
+                </div>
+              </div>
+              <div class="edit-mode" id="edit-producto-${producto.id}" style="display: none;">
+                <div class="edit-form">
+                  <div class="form-group">
+                    <label>Nombre:</label>
+                    <input type="text" id="edit-producto-nombre-${producto.id}" value="${producto.nombre}">
+                  </div>
+                  <div class="form-group">
+                    <label>Precio:</label>
+                    <input type="number" id="edit-producto-precio-${producto.id}" value="${producto.precio}" step="0.1" min="0">
+                  </div>
+                  <div class="edit-actions">
+                    <button class="btn-save" onclick="guardarCambios(${producto.id}, 'producto')">
+                      <i>💾</i> Guardar
+                    </button>
+                    <button class="btn-cancel" onclick="cancelarEdicion(${producto.id}, 'producto')">
+                      <i>❌</i> Cancelar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            `;
+            container.appendChild(card);
+          });
+        });
+    }
+
+    document.getElementById('form-producto').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const nombre = document.getElementById('producto-nombre').value.trim();
+      const precio = parseFloat(document.getElementById('producto-precio').value);
+
+      if (!nombre || isNaN(precio) || precio <= 0) {
+        alert('Por favor, completa todos los campos correctamente.');
+        return;
+      }
+
+      fetch('/api/productos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, precio })
+      })
+      .then(res => res.json())
+      .then(resp => {
+        if (resp.success) {
+          cargarProductos();
+          this.reset();
+          // Mostrar feedback visual
+          const btn = this.querySelector('button');
+          const originalText = btn.textContent;
+          btn.textContent = '✅ Añadido';
+          btn.style.background = '#28a745';
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.background = '';
+          }, 2000);
+        } else {
+          alert('Error: ' + (resp.error || 'No se pudo añadir'));
+        }
+      })
+      .catch(err => {
+        alert('Error de conexión con el servidor.');
+      });
+    });
+
+    document.getElementById('btn-importar-excel').addEventListener('click', function() {
+      document.getElementById('importar-excel').click();
+    });
+
+    document.getElementById('importar-excel').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, {type: 'array'});
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, {header:1});
+        // Espera encabezados: GRUPO, NOMBRE, APELLIDO, APELLIDO, DINERO
+        const headers = rows[0].map(h => h.toString().toLowerCase().trim());
+        const idxGrupo = headers.findIndex(h => h.includes('grupo'));
+        const idxNombre = headers.findIndex(h => h.includes('nombre'));
+        // Buscar ambos apellidos
+        const idxApellido1 = headers.findIndex((h, i) => h.includes('apellido') && i > idxNombre);
+        const idxApellido2 = headers.findIndex((h, i) => h.includes('apellido') && i > idxApellido1);
+        const idxDinero = headers.findIndex(h => h.includes('dinero'));
+        if (idxGrupo === -1 || idxNombre === -1 || idxApellido1 === -1 || idxDinero === -1) {
+          alert('El archivo debe tener columnas: GRUPO, NOMBRE, APELLIDO, APELLIDO, DINERO');
+          return;
+        }
+        // Procesar filas
+        const nuevosNinos = [];
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i];
+          if (!row[idxNombre]) continue;
+          const nombre = row[idxNombre].toString().trim();
+          const apellido1 = row[idxApellido1] ? row[idxApellido1].toString().trim() : '';
+          const apellido2 = idxApellido2 !== -1 && row[idxApellido2] ? row[idxApellido2].toString().trim() : '';
+          const apellidos = (apellido1 + ' ' + apellido2).trim();
+          const grupo = parseInt(row[idxGrupo], 10);
+          const dinero = parseFloat(row[idxDinero]);
+          if (!nombre || isNaN(grupo) || isNaN(dinero)) continue;
+          nuevosNinos.push({nombre, apellidos, grupo, dinero});
+        }
+        if (nuevosNinos.length === 0) {
+          alert('No se encontraron datos válidos en el archivo.');
+          return;
+        }
+        // Enviar cada niño al backend
+        let enviados = 0, fallidos = 0;
+        nuevosNinos.forEach(nino => {
+          fetch('/api/ninos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(nino)
+          })
+          .then(res => res.json())
+          .then(resp => {
+            if (resp.success) enviados++;
+            else fallidos++;
+            if (enviados + fallidos === nuevosNinos.length) {
+              cargarNinos();
+              alert(`Importación completada: ${enviados} añadidos, ${fallidos} fallidos.`);
+            }
+          })
+          .catch(() => {
+            fallidos++;
+            if (enviados + fallidos === nuevosNinos.length) {
+              cargarNinos();
+              alert(`Importación completada: ${enviados} añadidos, ${fallidos} fallidos.`);
+            }
+          });
+        });
+      };
+      reader.readAsArrayBuffer(file);
+      // Limpiar input para permitir reimportar el mismo archivo si se desea
+      e.target.value = '';
+    });
+
+    // --- Exportar niños a Excel ---
+    document.getElementById('btn-exportar-excel').addEventListener('click', function() {
+      if (!todosLosNinos.length) {
+        alert('No hay niños para exportar.');
+        return;
+      }
+      const data = [
+        ['Nombre', 'Apellido', 'Grupo', 'Dinero']
+      ];
+      todosLosNinos.forEach(nino => {
+        data.push([
+          nino.nombre,
+          nino.apellidos,
+          nino.grupo,
+          nino.dinero
+        ]);
+      });
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Niños');
+      XLSX.writeFile(wb, 'ninos.xlsx');
+    });
+
+    // Cargar configuración al inicio
+    function cargarConfiguracion() {
+      fetch('/api/configuracion')
+        .then(res => res.json())
+        .then(config => {
+          document.getElementById('cota-diaria').value = config.cotaDiaria || 2.50;
+        })
+        .catch(() => {
+          // Si no hay configuración, usar valor por defecto
+          document.getElementById('cota-diaria').value = 2.50;
+        });
+    }
+
+    // Manejar envío de configuración
+    document.getElementById('form-config').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const cotaDiaria = parseFloat(document.getElementById('cota-diaria').value);
+
+      if (isNaN(cotaDiaria) || cotaDiaria < 0) {
+        alert('Por favor, introduce una cota válida.');
+        return;
+      }
+
+      fetch('/api/configuracion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cotaDiaria })
+      })
+      .then(res => res.json())
+      .then(resp => {
+        if (resp.success) {
+          // Mostrar feedback visual
+          const btn = this.querySelector('button');
+          const originalText = btn.textContent;
+          btn.textContent = '✅ Actualizado';
+          btn.style.background = '#059669';
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.background = '';
+          }, 2000);
+        } else {
+          alert('Error: ' + (resp.error || 'No se pudo actualizar'));
+        }
+      })
+      .catch(err => {
+        alert('Error de conexión con el servidor.');
+      });
+    });
+
+    cargarConfiguracion();
+    cargarNinos();
+    cargarProductos();
+
+    // CRUD Functions - Clean Implementation
+    function toggleEdit(id, tipo) {
+      // Cancel any other active edits
+      document.querySelectorAll('.edit-mode').forEach(el => {
+        if (el.style.display === 'block') {
+          el.style.display = 'none';
+          const contentId = el.id.replace('edit-', '').replace('edit-producto-', 'content-producto-');
+          const content = document.getElementById(contentId.includes('producto') ? contentId : 'content-' + contentId);
+          if (content) content.style.display = 'block';
+        }
+      });
+
+      // Toggle current edit
+      const contentEl = document.getElementById(tipo === 'producto' ? `content-producto-${id}` : `content-${id}`);
+      const editEl = document.getElementById(tipo === 'producto' ? `edit-producto-${id}` : `edit-${id}`);
+      
+      if (contentEl && editEl) {
+        contentEl.style.display = 'none';
+        editEl.style.display = 'block';
+      }
+    }
+
+    function cancelarEdicion(id, tipo = 'nino') {
+      const contentEl = document.getElementById(tipo === 'producto' ? `content-producto-${id}` : `content-${id}`);
+      const editEl = document.getElementById(tipo === 'producto' ? `edit-producto-${id}` : `edit-${id}`);
+      
+      if (contentEl && editEl) {
+        contentEl.style.display = 'block';
+        editEl.style.display = 'none';
+      }
+    }
+
+    function guardarCambios(id, tipo) {
+      let data, url;
+      
+      if (tipo === 'nino') {
+        const nombre = document.getElementById(`edit-nombre-${id}`).value.trim();
+        const apellidos = document.getElementById(`edit-apellidos-${id}`).value.trim();
+        const grupo = parseInt(document.getElementById(`edit-grupo-${id}`).value);
+        const dinero = parseFloat(document.getElementById(`edit-dinero-${id}`).value);
+        
+        if (!nombre || !apellidos || isNaN(grupo) || grupo <= 0 || isNaN(dinero) || dinero < 0) {
+          mostrarNotificacion('Por favor, completa todos los campos correctamente.', 'error');
+          return;
+        }
+        
+        data = { nombre, apellidos, grupo, dinero };
+        url = `/api/ninos/${id}`;
+      } else {
+        const nombre = document.getElementById(`edit-producto-nombre-${id}`).value.trim();
+        const precio = parseFloat(document.getElementById(`edit-producto-precio-${id}`).value);
+        
+        if (!nombre || isNaN(precio) || precio <= 0) {
+          mostrarNotificacion('Por favor, completa todos los campos correctamente.', 'error');
+          return;
+        }
+        
+        data = { nombre, precio };
+        url = `/api/productos/${id}`;
+      }
+
+      fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+      .then(res => res.json())
+      .then(resp => {
+        if (resp.success) {
+          cancelarEdicion(id, tipo);
+          if (tipo === 'nino') {
+            cargarNinos();
+          } else {
+            cargarProductos();
+          }
+          mostrarNotificacion(`${tipo === 'nino' ? 'Niño' : 'Producto'} actualizado correctamente`, 'success');
+        } else {
+          mostrarNotificacion('Error: ' + (resp.error || 'No se pudo actualizar'), 'error');
+        }
+      })
+      .catch(err => {
+        mostrarNotificacion('Error de conexión con el servidor', 'error');
+      });
+    }
+
+    function eliminarItem(id, tipo, nombre) {
+      const modal = document.createElement('div');
+      modal.className = 'delete-modal';
+      modal.innerHTML = `
+        <div class="delete-modal-content">
+          <div class="delete-icon">⚠️</div>
+          <h3>Confirmar eliminación</h3>
+          <p>¿Estás seguro de que deseas eliminar ${tipo === 'nino' ? 'a' : 'el producto'} <strong>"${nombre}"</strong>?</p>
+          <p class="warning-text">Esta acción no se puede deshacer.</p>
+          <div class="delete-actions">
+            <button class="btn-cancel-delete" onclick="confirmarEliminacion(${id}, '${tipo}', this)">
+              <i>🗑️</i> Sí, eliminar
+            </button>
+            <button class="btn-confirm-delete" onclick="cerrarModal(this)">
+              <i>❌</i> Cancelar
+            </button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    function confirmarEliminacion(id, tipo, button) {
+      const url = `/api/${tipo === 'nino' ? 'ninos' : 'productos'}/${id}`;
+      
+      // Show loading state
+      button.innerHTML = '<i>⏳</i> Eliminando...';
+      button.disabled = true;
+      
+      fetch(url, { method: 'DELETE' })
+        .then(res => res.json())
+        .then(resp => {
+          if (resp.success) {
+            cerrarModal(button);
+            if (tipo === 'nino') {
+              cargarNinos();
+            } else {
+              cargarProductos();
+            }
+            mostrarNotificacion(`${tipo === 'nino' ? 'Niño' : 'Producto'} eliminado correctamente`, 'success');
+          } else {
+            mostrarNotificacion('Error: ' + (resp.error || 'No se pudo eliminar'), 'error');
+            cerrarModal(button);
+          }
+        })
+        .catch(err => {
+          mostrarNotificacion('Error de conexión con el servidor', 'error');
+          cerrarModal(button);
+        });
+    }
+
+    function cerrarModal(element) {
+      const modal = element.closest('.delete-modal');
+      if (modal) {
+        modal.remove();
+      }
+    }
+
+    function mostrarNotificacion(mensaje, tipo = 'info') {
+      const notification = document.createElement('div');
+      notification.className = `notification notification-${tipo}`;
+      notification.innerHTML = `
+        <div class="notification-content">
+          <span class="notification-icon">${tipo === 'success' ? '✅' : tipo === 'error' ? '❌' : 'ℹ️'}</span>
+          <span class="notification-message">${mensaje}</span>
+        </div>
+      `;
+      
+      document.body.appendChild(notification);
+      
+      // Auto remove after 4 seconds
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.style.opacity = '0';
+          setTimeout(() => notification.remove(), 300);
+        }
+      }, 4000);
+    }
+
+    // Añadir esta función para mostrar/ocultar formularios
+    function toggleForm(formId) {
+      const form = document.getElementById(formId);
+      if (form) {
+        if (form.style.display === 'none') {
+          // Cerrar cualquier otro formulario abierto primero
+          document.querySelectorAll('.setup-form').forEach(f => {
+            f.style.display = 'none';
+          });
+          // Mostrar el formulario solicitado con animación
+          form.style.display = 'flex';
+          form.style.opacity = '0';
+          form.style.transform = 'translateY(-20px)';
+          setTimeout(() => {
+            form.style.opacity = '1';
+            form.style.transform = 'translateY(0)';
+          }, 10);
+        } else {
+          // Ocultar el formulario
+          form.style.opacity = '0';
+          form.style.transform = 'translateY(-20px)';
+          setTimeout(() => {
+            form.style.display = 'none';
+          }, 300);
+        }
+      }
+    }
+
+    // Añadir event listeners para los botones de toggle
+    document.addEventListener('DOMContentLoaded', function() {
+      document.getElementById('toggle-form-nino').addEventListener('click', function() {
+        toggleForm('form-nino');
+      });
+
+      document.getElementById('toggle-form-producto').addEventListener('click', function() {
+        toggleForm('form-producto');
+      });
+    });
+  </script>
+</body>
+</html>

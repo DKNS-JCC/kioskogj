@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Kiosko Campamento</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="kiosk-container">
+    <h1>🏪 Kiosko GJ</h1>
+    <div class="main-actions-bar main-actions-bar-right">
+      <button onclick="window.location.href='stats.html'" class="btn-stats-top" title="Ver estadísticas">📊</button>
+      <button onclick="window.location.href='setup.html'" class="btn-settings-corner" title="Ajustes">⚙️</button>
+    </div>
+
+    <div class="user-selection">
+      <div class="select-group">
+        <label for="grupo">👥 Grupo</label>
+        <select id="grupo">
+          <option value="">Selecciona grupo</option>
+        </select>
+      </div>
+      <div class="select-group">
+        <label for="nino">👤 Niño</label>
+        <select id="nino" disabled>
+          <option value="">Selecciona niño</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- NUEVO: Info de saldo y compra del niño -->
+    <div id="info-nino" class="info-nino-card"></div>
+
+    <div class="order-section">
+      <h2>🛒 Pedido</h2>
+      <div id="productos"></div>
+    </div>
+
+    <div class="total-section">
+      <p>Total: <span id="total">0.00</span> €</p>
+    </div>
+
+    <div class="button-group">
+      <button onclick="confirmarCompra()" class="btn-confirm">✅ Confirmar pedido</button>
+    </div>
+
+    <div id="mensaje"></div>
+  </div>
+  <!-- Botón de ayuda flotante y barra de acciones vertical -->
+  <div class="floating-actions-vertical">
+    <button id="btn-ayuda" class="btn-ayuda-rect" onclick="iniciarTutorial()" title="Ayuda">?</button>
+    <button onclick="window.location.href='stats.html'" class="btn-stats-vertical" title="Ver estadísticas">📊</button>
+    <button onclick="window.location.href='setup.html'" class="btn-settings-vertical" title="Ajustes">⚙️</button>
+  </div>
+  <script>
+    let productosDB = [];
+    let LIMITE_DIARIO = 2.50; // Valor por defecto
+    
+    // Sistema de tutorial guiado
+    const pasosTutorial = [
+      {
+        elemento: '.user-selection',
+        titulo: 'Selección de usuario',
+        mensaje: 'Aquí puedes seleccionar primero un grupo y luego un niño para realizar una compra.',
+        posicion: 'abajo'
+      },
+      {
+        elemento: '#productos',
+        titulo: 'Productos disponibles',
+        mensaje: 'Puedes hacer clic en cualquier producto para añadir uno a tu pedido. También puedes usar los botones + y - para ajustar la cantidad.',
+        posicion: 'arriba'
+      },
+      {
+        elemento: '.total-section',
+        titulo: 'Total del pedido',
+        mensaje: 'Aquí verás el total a pagar. Si supera el límite diario recomendado, se mostrará en rojo.',
+        posicion: 'arriba'
+      },
+      {
+        elemento: '.btn-confirm',
+        titulo: 'Confirmar pedido',
+        mensaje: 'Una vez seleccionados los productos, haz clic aquí para finalizar la compra.',
+        posicion: 'izquierda'
+      },
+      {
+        elemento: '.btn-settings-corner',
+        titulo: 'Ajustes',
+        mensaje: 'Accede a la pantalla de administración para gestionar niños y productos.',
+        posicion: 'izquierda'
+      }
+    ];
+    
+    let pasoActual = 0;
+    let popupTutorial = null;
+    
+    function iniciarTutorial() {
+      pasoActual = 0;
+      mostrarPasoTutorial();
+      
+      // Ocultar temporalmente el botón de ayuda durante el tutorial
+      document.getElementById('btn-ayuda').style.display = 'none';
+    }
+    
+    function mostrarPasoTutorial() {
+      // Eliminar popup anterior si existe
+      if (popupTutorial) {
+        popupTutorial.remove();
+      }
+      
+      if (pasoActual >= pasosTutorial.length) {
+        finalizarTutorial();
+        return;
+      }
+      
+      const paso = pasosTutorial[pasoActual];
+      const elemento = document.querySelector(paso.elemento);
+      
+      if (!elemento) {
+        pasoActual++;
+        mostrarPasoTutorial();
+        return;
+      }
+      
+      // Crear popup
+      popupTutorial = document.createElement('div');
+      popupTutorial.className = `tutorial-popup tutorial-${paso.posicion}`;
+      popupTutorial.innerHTML = `
+        <div class="tutorial-header">
+          <span class="tutorial-numero">${pasoActual + 1}/${pasosTutorial.length}</span>
+          <h3>${paso.titulo}</h3>
+          <button class="tutorial-cerrar" onclick="finalizarTutorial()">×</button>
+        </div>
+        <div class="tutorial-contenido">
+          <p>${paso.mensaje}</p>
+        </div>
+        <div class="tutorial-botones">
+          ${pasoActual > 0 ? `<button onclick="pasoPrevio()">« Anterior</button>` : ''}
+          <button onclick="pasoSiguiente()">${pasoActual < pasosTutorial.length - 1 ? 'Siguiente »' : 'Finalizar'}</button>
+        </div>
+      `;
+      
+      document.body.appendChild(popupTutorial);
+      
+      // Posicionar popup
+      posicionarPopup(popupTutorial, elemento, paso.posicion);
+      
+      // Destacar el elemento actual
+      elemento.classList.add('tutorial-destacado');
+    }
+    
+    function posicionarPopup(popup, elemento, posicion) {
+      const rect = elemento.getBoundingClientRect();
+      
+      switch(posicion) {
+        case 'arriba':
+          popup.style.left = `${rect.left + rect.width/2}px`;
+          popup.style.top = `${rect.top - 10}px`;
+          break;
+        case 'abajo':
+          popup.style.left = `${rect.left + rect.width/2}px`;
+          popup.style.top = `${rect.bottom + 10}px`;
+          break;
+        case 'izquierda':
+          popup.style.left = `${rect.left - 10}px`;
+          popup.style.top = `${rect.top + rect.height/2}px`;
+          break;
+        case 'derecha':
+          popup.style.left = `${rect.right + 10}px`;
+          popup.style.top = `${rect.top + rect.height/2}px`;
+          break;
+      }
+    }
+    
+    function pasoSiguiente() {
+      // Quitar destacado del elemento actual
+      const pasoActualObj = pasosTutorial[pasoActual];
+      const elementoActual = document.querySelector(pasoActualObj.elemento);
+      if (elementoActual) {
+        elementoActual.classList.remove('tutorial-destacado');
+      }
+      
+      pasoActual++;
+      mostrarPasoTutorial();
+    }
+    
+    function pasoPrevio() {
+      // Quitar destacado del elemento actual
+      const pasoActualObj = pasosTutorial[pasoActual];
+      const elementoActual = document.querySelector(pasoActualObj.elemento);
+      if (elementoActual) {
+        elementoActual.classList.remove('tutorial-destacado');
+      }
+      
+      pasoActual--;
+      mostrarPasoTutorial();
+    }
+    
+    function finalizarTutorial() {
+      if (popupTutorial) {
+        popupTutorial.remove();
+        popupTutorial = null;
+      }
+      
+      // Quitar destacado de todos los elementos
+      document.querySelectorAll('.tutorial-destacado').forEach(el => {
+        el.classList.remove('tutorial-destacado');
+      });
+      
+      // Mostrar nuevamente el botón de ayuda
+      document.getElementById('btn-ayuda').style.display = 'block';
+    }
+
+    // Cargar configuración al inicio
+    function cargarConfiguracion() {
+      fetch('/api/configuracion')
+        .then(res => res.json())
+        .then(config => {
+          LIMITE_DIARIO = config.cotaDiaria || 2.50;
+        })
+        .catch(() => {
+          // Si no hay configuración, usar valor por defecto
+          LIMITE_DIARIO = 2.50;
+        });
+    }
+
+    // Cargar productos desde el backend
+    function cargarProductos() {
+      fetch('/api/productos')
+        .then(res => res.json())
+        .then(productos => {
+          productosDB = productos;
+          const productosContainer = document.getElementById('productos');
+          productosContainer.innerHTML = '';
+          productos.forEach(producto => {
+            const label = document.createElement('label');
+            label.className = 'producto-card-clickable';
+            
+            // Create the HTML content
+            label.innerHTML = `
+              <div class="producto-info">
+                <span class="producto-nombre">${producto.nombre}</span>
+                <span class="price">${producto.precio.toFixed(2)}€</span>
+              </div>
+              <div class="cantidad-controls">
+                <button type="button" class="btn-cantidad" id="btn-minus-${producto.id}">-</button>
+                <input type="number" class="cantidad-input" id="cantidad-${producto.id}" 
+                       value="0" min="0" max="20" data-precio="${producto.precio}">
+                <button type="button" class="btn-cantidad" id="btn-plus-${producto.id}">+</button>
+              </div>
+            `;
+            
+            productosContainer.appendChild(label);
+            
+            // Add click handlers after the element is in the DOM
+            document.getElementById(`btn-minus-${producto.id}`).onclick = (e) => {
+              e.stopPropagation();
+              cambiarCantidad(producto.id, -1);
+            };
+            
+            document.getElementById(`btn-plus-${producto.id}`).onclick = (e) => {
+              e.stopPropagation();
+              cambiarCantidad(producto.id, 1);
+            };
+            
+            document.getElementById(`cantidad-${producto.id}`).onchange = (e) => {
+              e.stopPropagation();
+              actualizarTotal();
+            };
+            
+            // Add click handler to the label itself
+            label.onclick = function() {
+              // Skip if clicked on a button or input
+              if (event.target.tagName === 'BUTTON' || event.target.tagName === 'INPUT') {
+                return;
+              }
+              
+              // Add product to cart
+              cambiarCantidad(producto.id, 1);
+              
+              // Visual feedback
+              this.classList.add('clicked');
+              setTimeout(() => this.classList.remove('clicked'), 200);
+            };
+          });
+        });
+    }
+
+    // Cargar grupos únicos desde la base de datos
+    let ninosDB = [];
+    fetch('/api/ninos')
+      .then(res => res.json())
+      .then(ninos => {
+        ninosDB = ninos;
+        const grupos = [...new Set(ninos.map(n => n.grupo))].sort((a, b) => a - b);
+        const grupoSelect = document.getElementById('grupo');
+        grupos.forEach(grupo => {
+          const opt = document.createElement('option');
+          opt.value = grupo;
+          opt.textContent = grupo;
+          grupoSelect.appendChild(opt);
+        });
+      });
+
+    // Mostrar info de saldo y compra al seleccionar niño
+    document.getElementById('nino').addEventListener('change', function() {
+      const ninoId = this.value;
+      const infoDiv = document.getElementById('info-nino');
+      infoDiv.textContent = '';
+      infoDiv.className = 'info-nino-card'; // reset classes
+      if (!ninoId) {
+        infoDiv.textContent = '';
+        return;
+      }
+      // Consultar saldo y si ya ha comprado hoy
+      fetch(`/api/ninos/${ninoId}/info`)
+        .then(res => {
+          if (!res.ok) throw new Error('No se pudo consultar el niño');
+          return res.json();
+        })
+        .then(data => {
+          let saldo = typeof data.saldo === 'number' ? data.saldo.toFixed(2) : '--';
+          let comprado = data.compradoHoy ? 'Sí' : 'No';
+          let color = data.compradoHoy ? '#dc2626' : '#10b981';
+          let icon = data.compradoHoy
+            ? '<span class="info-nino-icon" style="background:#fee2e2;color:#dc2626;">&#9888;</span>'
+            : '<span class="info-nino-icon" style="background:#d1fae5;color:#10b981;">&#10003;</span>';
+          infoDiv.innerHTML = `
+            <div class="info-nino-flex">
+              <div>
+                <span class="info-nino-label">💰 Saldo:</span>
+                <span class="info-nino-value" style="color:#4338ca">${saldo}€</span>
+              </div>
+              <div>
+                <span class="info-nino-label">🗓️ ¿Ha comprado hoy?:</span>
+                <span class="info-nino-value" style="color:${color};font-weight:700">${comprado}</span>
+                ${icon}
+              </div>
+            </div>
+          `;
+        })
+        .catch(() => {
+          infoDiv.innerHTML = '<div class="info-nino-error">⚠️ No se pudo consultar el niño seleccionado.</div>';
+        });
+    });
+
+    document.getElementById('grupo').addEventListener('change', function() {
+      const grupo = this.value;
+      const ninoSelect = document.getElementById('nino');
+      ninoSelect.innerHTML = '<option value="">Selecciona niño</option>';
+      if (!grupo) {
+        ninoSelect.disabled = true;
+        return;
+      }
+      const filtrados = ninosDB
+        .filter(n => n.grupo.toString() === grupo)
+        .sort((a, b) => (a.nombre + ' ' + a.apellidos).localeCompare(b.nombre + ' ' + b.apellidos));
+      filtrados.forEach(nino => {
+        const opt = document.createElement('option');
+        opt.value = nino.id;
+        opt.textContent = nino.nombre + ' ' + nino.apellidos;
+        ninoSelect.appendChild(opt);
+      });
+      ninoSelect.disabled = false;
+    });
+
+    // Función para cambiar cantidad con botones
+    window.cambiarCantidad = function(productoId, delta) {
+      const input = document.getElementById(`cantidad-${productoId}`);
+      const nuevaCantidad = Math.max(0, Math.min(20, parseInt(input.value) + delta));
+      input.value = nuevaCantidad;
+      actualizarTotal();
+    };
+
+    // Actualizar total cuando cambia cualquier cantidad
+    function actualizarTotal() {
+      let total = 0;
+      document.querySelectorAll('.cantidad-input').forEach(input => {
+        const cantidad = parseInt(input.value) || 0;
+        const precio = parseFloat(input.getAttribute('data-precio'));
+        total += cantidad * precio;
+      });
+      
+      const totalElement = document.getElementById('total');
+      const totalSection = document.querySelector('.total-section');
+      
+      totalElement.textContent = total.toFixed(2);
+      
+      // Aplicar estilos según si supera el límite
+      if (total > LIMITE_DIARIO) {
+        totalSection.classList.add('limite-superado');
+      } else {
+        totalSection.classList.remove('limite-superado');
+      }
+    }
+
+    // Confirmar compra
+    window.confirmarCompra = function() {
+      const ninoId = parseInt(document.getElementById('nino').value, 10);
+      if (isNaN(ninoId)) {
+        mostrarMensaje('Selecciona un niño.', 'red', false);
+        return;
+      }
+      
+      const productosSeleccionados = [];
+      let total = 0;
+      
+      document.querySelectorAll('.cantidad-input').forEach(input => {
+        const cantidad = parseInt(input.value) || 0;
+        if (cantidad > 0) {
+          const precio = parseFloat(input.getAttribute('data-precio'));
+          const productoId = input.id.replace('cantidad-', '');
+          productosSeleccionados.push({ 
+            id: productoId, 
+            precio: precio, 
+            cantidad: cantidad,
+            subtotal: cantidad * precio
+          });
+          total += cantidad * precio;
+        }
+      });
+      
+      if (total === 0) {
+        mostrarMensaje('Selecciona al menos un producto.', 'red', false);
+        return;
+      }
+
+      // Verificar si supera el límite diario
+      if (total > LIMITE_DIARIO) {
+        mostrarConfirmacionLimite(total, ninoId, productosSeleccionados);
+        return;
+      }
+
+      // Proceder con la compra normal
+      procesarCompra(total, ninoId, productosSeleccionados);
+    };
+
+    function mostrarConfirmacionLimite(total, ninoId, productos) {
+      const modal = document.createElement('div');
+      modal.id = 'popup-modal';
+      modal.innerHTML = `
+        <div class="popup-content">
+          <p><strong>¡Atención!</strong></p>
+          <p>El total de <strong>${total.toFixed(2)}€</strong> supera la cota diaria recomendada de <strong>${LIMITE_DIARIO.toFixed(2)}€</strong>.</p>
+          <p>¿Estás seguro de que quieres continuar?</p>
+          <div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
+            <button id="confirmar-limite" style="background: #dc2626;">Sí, continuar</button>
+            <button id="cancelar-limite" style="background: #64748b;">Cancelar</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      document.getElementById('confirmar-limite').onclick = () => {
+        modal.remove();
+        procesarCompra(total, ninoId, productos);
+      };
+
+      document.getElementById('cancelar-limite').onclick = () => {
+        modal.remove();
+      };
+
+      modal.onclick = (e) => {
+        if (e.target === modal) modal.remove();
+      };
+    }
+
+    function procesarCompra(total, ninoId, productos) {
+      // Crear resumen del pedido
+      let resumenProductos = productos.map(p => {
+        const producto = productosDB.find(prod => prod.id == p.id);
+        return `${producto.nombre} x${p.cantidad}`;
+      }).join('<br>');
+
+      // Obtener datos del niño para el log
+      const nino = ninosDB.find(n => n.id == ninoId);
+      const productosTexto = productos.map(p => {
+        const producto = productosDB.find(prod => prod.id == p.id);
+        return `${producto.nombre} x${p.cantidad} (${p.subtotal.toFixed(2)}€)`;
+      }).join(', ');
+
+      // Restar saldo en el backend
+      fetch(`/api/ninos/${ninoId}/restar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cantidad: total })
+      })
+      .then(res => res.json())
+      .then(resp => {
+        if (resp.success) {
+          // Registrar la transacción
+          fetch('/api/transacciones', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              nino_id: ninoId,
+              nino_nombre: `${nino.nombre} ${nino.apellidos}`,
+              productos: productosTexto,
+              total: total
+            })
+          })
+          .then(() => {
+            mostrarMensaje(
+              `Pedido confirmado.<br><strong>Productos:</strong><br>${resumenProductos}<br><strong>Total gastado:</strong> ${total.toFixed(2)}€<br><strong>Saldo restante:</strong> ${resp.nuevoSaldo.toFixed(2)}€`,
+              'green',
+              true
+            );
+          })
+          .catch(() => {
+            // Mostrar mensaje aunque falle el log (la compra ya se procesó)
+            mostrarMensaje(
+              `Pedido confirmado.<br><strong>Productos:</strong><br>${resumenProductos}<br><strong>Total gastado:</strong> ${total.toFixed(2)}€<br><strong>Saldo restante:</strong> ${resp.nuevoSaldo.toFixed(2)}€`,
+              'green',
+              true
+            );
+          });
+        } else {
+          mostrarMensaje(`Error: ${resp.error || 'No se pudo procesar el pedido'}`, 'red', false);
+        }
+      })
+      .catch(() => mostrarMensaje('Error de conexión con el servidor.', 'red', false));
+    }
+
+    function mostrarMensaje(msg, color, reloadOnOk) {
+      const modal = document.createElement('div');
+      modal.id = 'popup-modal';
+      modal.innerHTML = `
+        <div class="popup-content">
+          <p>${msg}</p>
+          ${reloadOnOk ? '<button id="popup-ok">OK</button>' : ''}
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      if (reloadOnOk) {
+        document.getElementById('popup-ok').onclick = () => location.reload();
+      }
+
+      modal.onclick = (e) => {
+        if (e.target === modal) modal.remove();
+      };
+    }
+
+    // Inicializar la aplicación
+    cargarConfiguracion();
+    cargarProductos();
+  </script>
+</body>
+</html>
+</html>

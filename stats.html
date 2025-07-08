@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Estadísticas y Log - Kiosko Campamento</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Añadir Chart.js para los gráficos -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="stats-container">
+    <!-- Cabecera -->
+    <h1 style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <button onclick="window.location.href='index.html'" class="btn-back" style="margin:0 10px 0 0;min-width:unset;padding:10px 18px;font-size:1.1rem;">← Volver</button>
+      <span style="flex:1;text-align:center;">Estadísticas y Log de Compras</span>
+      <span style="width:110px;"></span>
+    </h1>
+    
+    <!-- SECCIÓN 1: Resumen de Estadísticas -->
+    <section class="stats-section">
+      <h2 class="section-title">📈 Resumen de Actividad</h2>
+      <div class="stats-overview">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: linear-gradient(45deg, #4338ca, #6b21a8);">💰</div>
+          <div class="stat-info">
+            <h3>Total Ventas</h3>
+            <p class="stat-number" id="total-ventas">0€</p>
+            <span class="stat-subtitle" id="total-transacciones">0 transacciones</span>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-icon" style="background: linear-gradient(45deg, #10b981, #059669);">📅</div>
+          <div class="stat-info">
+            <h3>Ventas Hoy</h3>
+            <p class="stat-number" id="ventas-hoy">0€</p>
+            <span class="stat-subtitle" id="transacciones-hoy">0 transacciones</span>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-icon" style="background: linear-gradient(45deg, #f59e0b, #d97706);">👑</div>
+          <div class="stat-info">
+            <h3>Top Cliente</h3>
+            <p class="stat-number" id="top-cliente">-</p>
+            <span class="stat-subtitle" id="top-cliente-amount">0€ gastado</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 2: Análisis Visual - Simplificado para campamento corto -->
+    <section class="charts-section">
+      <h2 class="section-title">📊 Actividad del Campamento</h2>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>Consumo diario (últimos 10 días)</h3>
+          <div class="chart-container">
+            <canvas id="ventas-diarias-chart"></canvas>
+          </div>
+        </div>
+        
+        <div class="chart-card">
+          <h3>Distribución por grupo</h3>
+          <div class="chart-container">
+            <canvas id="grupos-chart"></canvas>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Estadísticas adicionales para campamento corto -->
+      <div class="camp-stats-grid">
+        <div class="camp-stat-card">
+          <h3>Día más activo</h3>
+          <div id="dia-mas-activo" class="camp-stat-value">-</div>
+        </div>
+        
+        <div class="camp-stat-card">
+          <h3>Producto más vendido</h3>
+          <div id="producto-mas-vendido" class="camp-stat-value">-</div>
+        </div>
+        
+        <div class="camp-stat-card">
+          <h3>Transacciones totales</h3>
+          <div id="total-transacciones-camp" class="camp-stat-value">0</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 3: Filtros de Búsqueda -->
+    <section class="filters-section">
+      <h2 class="section-title">🔍 Filtros de Búsqueda</h2>
+      <div class="filters-panel">
+        <div class="filters-grid">
+          <div class="filter-column">
+            <h3 class="filter-column-title">Periodo</h3>
+            <div class="filter-group">
+              <label>Desde:</label>
+              <input type="date" id="fecha-inicio" class="filter-input">
+            </div>
+            
+            <div class="filter-group">
+              <label>Hasta:</label>
+              <input type="date" id="fecha-fin" class="filter-input">
+            </div>
+          </div>
+          
+          <div class="filter-column">
+            <h3 class="filter-column-title">Cliente</h3>
+            <div class="filter-group">
+              <label>Niño:</label>
+              <select id="filtro-nino" class="filter-input">
+                <option value="">Todos los niños</option>
+              </select>
+            </div>
+            
+            <div class="filter-group">
+              <label>Grupo:</label>
+              <select id="filtro-grupo" class="filter-input">
+                <option value="">Todos los grupos</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="filter-column">
+            <h3 class="filter-column-title">Productos</h3>
+            <div class="filter-group">
+              <label>Buscar término:</label>
+              <input type="text" id="busqueda-productos" class="filter-input" placeholder="Ej: Coca Cola, Helado...">
+            </div>
+          </div>
+        </div>
+        
+        <div class="filter-actions">
+          <button id="aplicar-filtros" class="btn-filter">
+            <span class="filter-btn-icon">🔍</span> Aplicar Filtros
+          </button>
+          <button id="limpiar-filtros" class="btn-clear">
+            <span class="filter-btn-icon">🗑️</span> Limpiar
+          </button>
+          <button id="exportar-excel" class="btn-export">
+            <span class="filter-btn-icon">📊</span> Exportar a Excel
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 4: Historial de Transacciones -->
+    <section class="transactions-section">
+      <h2 class="section-title">📝 Historial de Compras</h2>
+      <div class="results-header">
+        <div class="results-info">
+          <span id="total-resultados">0 resultados</span>
+        </div>
+      </div>
+      
+      <div id="transacciones-lista" class="transactions-list"></div>
+      
+      <!-- Paginación -->
+      <div class="pagination" id="pagination">
+        <button id="prev-page" class="btn-page">← Anterior</button>
+        <span id="page-info">Página 1 de 1</span>
+        <button id="next-page" class="btn-page">Siguiente →</button>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 5: Acciones finales -->
+    <section class="stats-actions-section">
+      <div class="stats-actions">
+        <button onclick="window.location.href='index.html'" class="btn-back">← Volver al kiosko</button>
+        <button onclick="window.location.href='setup.html'" class="btn-settings">⚙️ Ajustes</button>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <script>
+    let todasLasTransacciones = [];
+    let transaccionesFiltradas = [];
+    let paginaActual = 1;
+    const transaccionesPorPagina = 20;
+    let chartVentasDiarias, chartGrupos;
+
+    // Cargar estadísticas
+    function cargarEstadisticas() {
+      fetch('/api/estadisticas')
+        .then(res => res.json())
+        .then(stats => {
+          // Total ventas
+          const totalVentas = stats.totalVentas[0] || { count: 0, sum: 0 };
+          document.getElementById('total-ventas').textContent = `${(totalVentas.sum || 0).toFixed(2)}€`;
+          document.getElementById('total-transacciones').textContent = `${totalVentas.count} transacciones`;
+          document.getElementById('total-transacciones-camp').textContent = totalVentas.count;
+          
+          // Ventas hoy
+          const ventasHoy = stats.ventasHoy[0] || { count: 0, sum: 0 };
+          document.getElementById('ventas-hoy').textContent = `${(ventasHoy.sum || 0).toFixed(2)}€`;
+          document.getElementById('transacciones-hoy').textContent = `${ventasHoy.count} transacciones`;
+          
+          // Top cliente
+          const topCliente = stats.topNinos[0];
+          if (topCliente) {
+            document.getElementById('top-cliente').textContent = topCliente.nino_nombre;
+            document.getElementById('top-cliente-amount').textContent = `${topCliente.gastado.toFixed(2)}€ gastado`;
+          }
+          
+          // Generar gráficos para campamento corto
+          if (stats.ventasPorDia && stats.ventasPorDia.length > 0) {
+            generarGraficoVentasDiarias(stats.ventasPorDia);
+          }
+          
+          // Analizar productos vendidos
+          fetch('/api/transacciones')
+            .then(res => res.json())
+            .then(transacciones => {
+              // Calcular producto más vendido
+              const productosConteo = {};
+              
+              transacciones.forEach(t => {
+                const productosArray = t.productos.split(',');
+                productosArray.forEach(prod => {
+                  const match = prod.trim().match(/(.+) x(\d+)/);
+                  if (match) {
+                    const nombre = match[1].trim();
+                    const cantidad = parseInt(match[2], 10);
+                    if (!productosConteo[nombre]) productosConteo[nombre] = 0;
+                    productosConteo[nombre] += cantidad;
+                  }
+                });
+              });
+              
+              // Encontrar el producto más vendido
+              let productoMasVendido = { nombre: '-', cantidad: 0 };
+              for (const [nombre, cantidad] of Object.entries(productosConteo)) {
+                if (cantidad > productoMasVendido.cantidad) {
+                  productoMasVendido = { nombre, cantidad };
+                }
+              }
+              
+              // Actualizar en la interfaz
+              document.getElementById('producto-mas-vendido').innerHTML = `
+                <span class="camp-stat-product">${productoMasVendido.nombre}</span>
+                <span class="camp-stat-detail">${productoMasVendido.cantidad} unidades</span>
+              `;
+              
+              generarGraficoGrupos(transacciones);
+            })
+            .catch(err => console.error('Error cargando datos para gráficos:', err));
+        })
+        .catch(err => console.error('Error cargando estadísticas:', err));
+    }
+    
+    // Generar gráfico de ventas diarias simplificado para campamento corto
+    function generarGraficoVentasDiarias(ventasPorDia) {
+      const dias = [];
+      const ventas = [];
+      const compras = [];
+      
+      // Ordenar por fecha ascendente
+      ventasPorDia.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+      
+      // Limitar a los últimos 10 días si hay más datos
+      const ultimosDias = ventasPorDia.slice(-10);
+      
+      let maxVentasDia = { fecha: '', total: 0, compras: 0 };
+      
+      ultimosDias.forEach(dia => {
+        // Formatear fecha a formato legible
+        const fecha = new Date(dia.fecha);
+        const fechaFormateada = fecha.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: '2-digit' });
+        dias.push(fechaFormateada);
+        ventas.push(dia.total || 0);
+        compras.push(dia.compras || 0);
+        
+        // Registrar el día con más ventas
+        if (dia.total > maxVentasDia.total) {
+          maxVentasDia = {
+            fecha: fechaFormateada,
+            total: dia.total,
+            compras: dia.compras
+          };
+        }
+      });
+      
+      // Actualizar estadística de día más activo
+      if (maxVentasDia.fecha) {
+        document.getElementById('dia-mas-activo').innerHTML = `
+          <span class="camp-stat-day">${maxVentasDia.fecha}</span>
+          <span class="camp-stat-detail">${maxVentasDia.total.toFixed(2)}€ (${maxVentasDia.compras} trans.)</span>
+        `;
+      }
+      
+      const ctx = document.getElementById('ventas-diarias-chart').getContext('2d');
+      
+      if (chartVentasDiarias) {
+        chartVentasDiarias.destroy();
+      }
+      
+      chartVentasDiarias = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: dias,
+          datasets: [
+            {
+              label: 'Ventas (€)',
+              data: ventas,
+              backgroundColor: 'rgba(67, 56, 202, 0.7)',
+              borderColor: 'rgba(67, 56, 202, 1)',
+              borderWidth: 1
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false,
+            },
+            tooltip: {
+              callbacks: {
+                footer: function(tooltipItems) {
+                  const idx = tooltipItems[0].dataIndex;
+                  return `${compras[idx]} transacciones`;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Ventas (€)'
+              }
+            }
+          }
+        }
+      });
+    }
+    
+    // Generar gráfico de distribución por grupos
+    function generarGraficoGrupos(transacciones) {
+      const grupos = {};
+      
+      transacciones.forEach(t => {
+        const grupo = t.grupo || 'Sin grupo';
+        if (!grupos[grupo]) grupos[grupo] = 0;
+        grupos[grupo] += t.total;
+      });
+      
+      const labels = Object.keys(grupos).sort((a, b) => a - b).map(g => `Grupo ${g}`);
+      const data = labels.map(l => grupos[l.replace('Grupo ', '')]);
+      
+      const ctx = document.getElementById('grupos-chart').getContext('2d');
+      
+      if (chartGrupos) {
+        chartGrupos.destroy();
+      }
+      
+      chartGrupos = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            backgroundColor: [
+              'rgba(99, 102, 241, 0.7)',
+              'rgba(16, 185, 129, 0.7)',
+              'rgba(245, 158, 11, 0.7)',
+              'rgba(236, 72, 153, 0.7)',
+              'rgba(14, 165, 233, 0.7)',
+              'rgba(139, 92, 246, 0.7)',
+              'rgba(234, 88, 12, 0.7)',
+              'rgba(20, 184, 166, 0.7)'
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+            }
+          }
+        }
+      });
+    }
+
+    // Cargar datos para filtros
+    function cargarDatosFiltros() {
+      // Cargar niños para el filtro
+      fetch('/api/ninos')
+        .then(res => res.json())
+        .then(ninos => {
+          const filtroNino = document.getElementById('filtro-nino');
+          ninos.forEach(nino => {
+            const option = document.createElement('option');
+            option.value = nino.id;
+            option.textContent = `${nino.nombre} ${nino.apellidos}`;
+            filtroNino.appendChild(option);
+          });
+          
+          // Llenar filtro de grupos
+          const grupos = [...new Set(ninos.map(n => n.grupo))].sort((a, b) => a - b);
+          const filtroGrupo = document.getElementById('filtro-grupo');
+          grupos.forEach(grupo => {
+            const option = document.createElement('option');
+            option.value = grupo;
+            option.textContent = `Grupo ${grupo}`;
+            filtroGrupo.appendChild(option);
+          });
+        });
+    }
+
+    // Cargar transacciones
+    function cargarTransacciones(filtros = {}) {
+      const params = new URLSearchParams(filtros);
+      
+      fetch(`/api/transacciones?${params}`)
+        .then(res => res.json())
+        .then(transacciones => {
+          todasLasTransacciones = transacciones;
+          transaccionesFiltradas = transacciones;
+          paginaActual = 1;
+          mostrarTransacciones();
+          actualizarPaginacion();
+          document.getElementById('total-resultados').textContent = `${transacciones.length} resultados`;
+        })
+        .catch(err => console.error('Error cargando transacciones:', err));
+    }
+
+    // Mostrar transacciones with paginación
+    function mostrarTransacciones() {
+      const inicio = (paginaActual - 1) * transaccionesPorPagina;
+      const fin = inicio + transaccionesPorPagina;
+      const transaccionesPagina = transaccionesFiltradas.slice(inicio, fin);
+      
+      const container = document.getElementById('transacciones-lista');
+      container.innerHTML = '';
+      
+      if (transaccionesPagina.length === 0) {
+        container.innerHTML = '<div class="empty-transactions">No se encontraron transacciones</div>';
+        return;
+      }
+      
+      transaccionesPagina.forEach(transaccion => {
+        const fecha = new Date(transaccion.fecha_hora);
+        const fechaFormateada = fecha.toLocaleDateString('es-ES');
+        const horaFormateada = fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+        
+        const card = document.createElement('div');
+        card.className = 'transaction-card';
+        card.innerHTML = `
+          <div class="transaction-header">
+            <div class="transaction-customer">
+              <h3>${transaccion.nino_nombre}</h3>
+              <span class="group-badge">Grupo ${transaccion.grupo || 'N/A'}</span>
+            </div>
+            <div class="transaction-amount">
+              <span class="amount">${transaccion.total.toFixed(2)}€</span>
+              <span class="datetime">${fechaFormateada} ${horaFormateada}</span>
+            </div>
+          </div>
+          <div class="transaction-products">
+            <strong>Productos:</strong> ${transaccion.productos}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // Actualizar paginación
+    function actualizarPaginacion() {
+      const totalPaginas = Math.ceil(transaccionesFiltradas.length / transaccionesPorPagina);
+      document.getElementById('page-info').textContent = `Página ${paginaActual} de ${totalPaginas}`;
+      document.getElementById('prev-page').disabled = paginaActual <= 1;
+      document.getElementById('next-page').disabled = paginaActual >= totalPaginas;
+    }
+
+    // Event listeners
+    document.getElementById('aplicar-filtros').addEventListener('click', function() {
+      const filtros = {};
+      
+      const fechaInicio = document.getElementById('fecha-inicio').value;
+      const fechaFin = document.getElementById('fecha-fin').value;
+      const ninoId = document.getElementById('filtro-nino').value;
+      const grupo = document.getElementById('filtro-grupo').value;
+      const busqueda = document.getElementById('busqueda-productos').value.trim();
+      
+      if (fechaInicio) filtros.fecha_inicio = fechaInicio;
+      if (fechaFin) filtros.fecha_fin = fechaFin;
+      if (ninoId) filtros.nino_id = ninoId;
+      if (grupo) filtros.grupo = grupo;
+      if (busqueda) filtros.busqueda = busqueda;
+      
+      cargarTransacciones(filtros);
+    });
+
+    document.getElementById('limpiar-filtros').addEventListener('click', function() {
+      document.getElementById('fecha-inicio').value = '';
+      document.getElementById('fecha-fin').value = '';
+      document.getElementById('filtro-nino').value = '';
+      document.getElementById('filtro-grupo').value = '';
+      document.getElementById('busqueda-productos').value = '';
+      cargarTransacciones();
+    });
+
+    document.getElementById('prev-page').addEventListener('click', function() {
+      if (paginaActual > 1) {
+        paginaActual--;
+        mostrarTransacciones();
+        actualizarPaginacion();
+      }
+    });
+
+    document.getElementById('next-page').addEventListener('click', function() {
+      const totalPaginas = Math.ceil(transaccionesFiltradas.length / transaccionesPorPagina);
+      if (paginaActual < totalPaginas) {
+        paginaActual++;
+        mostrarTransacciones();
+        actualizarPaginacion();
+      }
+    });
+
+    document.getElementById('exportar-excel').addEventListener('click', function() {
+      if (transaccionesFiltradas.length === 0) {
+        alert('No hay datos para exportar');
+        return;
+      }
+      // Prepara los datos para Excel
+      const wsData = [
+        ['Fecha', 'Hora', 'Niño', 'Grupo', 'Productos', 'Total (€)']
+      ];
+      transaccionesFiltradas.forEach(t => {
+        const fecha = new Date(t.fecha_hora);
+        wsData.push([
+          fecha.toLocaleDateString('es-ES'),
+          fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+          t.nino_nombre,
+          t.grupo || 'N/A',
+          t.productos,
+          t.total.toFixed(2)
+        ]);
+      });
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Transacciones');
+      XLSX.writeFile(wb, `transacciones_${new Date().toISOString().split('T')[0]}.xlsx`);
+    });
+
+    // Inicializar
+    cargarEstadisticas();
+    cargarDatosFiltros();
+    cargarTransacciones();
+  </script>
+</body>
+</html>
