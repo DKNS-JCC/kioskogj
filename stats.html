@@ -58,6 +58,42 @@
       </div>
     </section>
 
+    <!-- NUEVA SECCIÓN: Estadísticas de Tokens -->
+    <section class="stats-section">
+      <h2 class="section-title">🪙 Estadísticas de Tokens</h2>
+      <div class="stats-overview">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: linear-gradient(45deg, #ca8a04, #eab308);">🏆</div>
+          <div class="stat-info">
+            <h3>Total Tokens</h3>
+            <p class="stat-number" id="total-tokens">0</p>
+            <span class="stat-subtitle">En todo el campamento</span>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-icon" style="background: linear-gradient(45deg, #ca8a04, #eab308);">👑</div>
+          <div class="stat-info">
+            <h3>Top Tokens Individual</h3>
+            <p class="stat-number" id="top-tokens-nino">-</p>
+            <span class="stat-subtitle" id="top-tokens-nino-cantidad">0 tokens</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Tokens por grupo -->
+      <div style="padding: 0 24px 24px 24px;">
+        <h3 style="margin: 10px 0 20px; color: #ca8a04; text-align: center;">Tokens por Grupo</h3>
+        <div id="tokens-por-grupo" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;"></div>
+      </div>
+      
+      <!-- Top aportadores de tokens -->
+      <div style="margin: 30px 24px;">
+        <h3 style="margin-bottom: 16px; color: #ca8a04; text-align: center;">Top 5 Aportadores de Tokens</h3>
+        <div class="transactions-list" id="tokens-ranking"></div>
+      </div>
+    </section>
+
     <!-- SECCIÓN 2: Análisis Visual - Simplificado para campamento corto -->
     <section class="charts-section">
       <h2 class="section-title">📊 Actividad del Campamento</h2>
@@ -590,6 +626,176 @@
     cargarEstadisticas();
     cargarDatosFiltros();
     cargarTransacciones();
+    
+    // Cargar estadísticas de tokens
+    function cargarEstadisticasTokens() {
+      fetch('/api/ninos')
+        .then(res => res.json())
+        .then(ninos => {
+          // Calcular total de tokens
+          const totalTokens = ninos.reduce((total, nino) => total + (nino.tokens || 0), 0);
+          document.getElementById('total-tokens').textContent = totalTokens;
+          
+          // Encontrar el niño con más tokens
+          let topNino = { nombre: '', apellidos: '', tokens: 0 };
+          ninos.forEach(nino => {
+            if ((nino.tokens || 0) > topNino.tokens) {
+              topNino = { 
+                nombre: nino.nombre, 
+                apellidos: nino.apellidos, 
+                tokens: nino.tokens || 0 
+              };
+            }
+          });
+          
+          if (topNino.tokens > 0) {
+            document.getElementById('top-tokens-nino').textContent = `${topNino.nombre} ${topNino.apellidos}`;
+            document.getElementById('top-tokens-nino-cantidad').textContent = `${topNino.tokens} tokens`;
+          }
+          
+          // Calcular tokens por grupo
+          const gruposTokens = {};
+          ninos.forEach(nino => {
+            const grupo = nino.grupo;
+            if (!gruposTokens[grupo]) {
+              gruposTokens[grupo] = { 
+                total: 0, 
+                ninos: [] 
+              };
+            }
+            gruposTokens[grupo].total += (nino.tokens || 0);
+            gruposTokens[grupo].ninos.push({
+              id: nino.id,
+              nombre: nino.nombre,
+              apellidos: nino.apellidos,
+              tokens: nino.tokens || 0
+            });
+          });
+          
+          // Mostrar tokens por grupo
+          const gruposContainer = document.getElementById('tokens-por-grupo');
+          gruposContainer.innerHTML = '';
+          
+          Object.keys(gruposTokens).sort((a, b) => a - b).forEach(grupo => {
+            const grupoData = gruposTokens[grupo];
+            
+            // Ordenar niños del grupo por tokens (de mayor a menor)
+            const ninosOrdenados = grupoData.ninos
+              .filter(nino => nino.tokens > 0)  // Solo mostrar niños con tokens
+              .sort((a, b) => b.tokens - a.tokens);
+            
+            const grupoCard = document.createElement('div');
+            grupoCard.className = 'camp-stat-card';
+            
+            // Generar HTML del encabezado del grupo
+            let grupoHTML = `
+              <h3>Grupo ${grupo}</h3>
+              <div class="camp-stat-value">
+                <span class="camp-stat-day">${grupoData.total}</span>
+                <span class="camp-stat-detail">tokens totales</span>
+              </div>
+            `;
+            
+            // Añadir lista de niños si hay tokens en el grupo
+            if (ninosOrdenados.length > 0) {
+              grupoHTML += `
+                <div style="margin-top: 15px; border-top: 1px solid #e5e7eb; padding-top: 10px;">
+                  <ul style="list-style: none; padding: 0; margin: 0; text-align: left; max-height: 300px; overflow-y: auto;">
+              `;
+              
+              // Mostrar TODOS los niños del grupo con tokens (sin límite)
+              ninosOrdenados.forEach((nino, index) => {
+                // Determinar medalla para los tres primeros lugares
+                let medalla = '';
+                if (index === 0) medalla = '🥇 ';
+                else if (index === 1) medalla = '🥈 ';
+                else if (index === 2) medalla = '🥉 ';
+                
+                grupoHTML += `
+                  <li style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.9rem;">
+                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px;">
+                      ${medalla}${nino.nombre} ${nino.apellidos}
+                    </span>
+                    <span style="font-weight: 600; color: #ca8a04; margin-left: 5px;">
+                      ${nino.tokens}🪙
+                    </span>
+                  </li>
+                `;
+              });
+              
+              grupoHTML += `</ul></div>`;
+            } else {
+              // Mostrar mensaje si no hay niños con tokens
+              grupoHTML += `
+                <div style="margin-top: 15px; color: #6b7280; font-size: 0.9rem; font-style: italic; text-align: center;">
+                  No hay tokens en este grupo
+                </div>
+              `;
+            }
+            
+            grupoCard.innerHTML = grupoHTML;
+            gruposContainer.appendChild(grupoCard);
+          });
+          
+          // Crear ranking de niños por tokens - limitado a top 5
+          const ninosOrdenados = ninos
+            .filter(nino => (nino.tokens || 0) > 0)
+            .sort((a, b) => (b.tokens || 0) - (a.tokens || 0))
+            .slice(0, 5); // Limitar a solo los 5 mejores
+          
+          const rankingContainer = document.getElementById('tokens-ranking');
+          rankingContainer.innerHTML = '';
+          
+          if (ninosOrdenados.length === 0) {
+            rankingContainer.innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">No hay tokens asignados todavía</div>';
+            return;
+          }
+          
+          ninosOrdenados.forEach((nino, index) => {
+            const rankingCard = document.createElement('div');
+            rankingCard.className = 'transaction-card';
+            rankingCard.style.display = 'flex';
+            rankingCard.style.alignItems = 'center';
+            rankingCard.style.justifyContent = 'space-between';
+            rankingCard.style.padding = '16px 20px';
+            
+            // Determinamos la medalla según la posición
+            let medalla = '';
+            if (index === 0) medalla = '🥇';
+            else if (index === 1) medalla = '🥈';
+            else if (index === 2) medalla = '🥉';
+            else medalla = `${index + 1}.`;
+            
+            rankingCard.innerHTML = `
+              <div style="display:flex;align-items:center;">
+                <span style="font-size:1.4rem;margin-right:15px;min-width:40px;text-align:center;">${medalla}</span>
+                <div>
+                  <h3 style="margin:0;font-size:1.1rem;">${nino.nombre} ${nino.apellidos}</h3>
+                  <span class="group-badge">Grupo ${nino.grupo}</span>
+                </div>
+              </div>
+              <div style="font-size:1.3rem;font-weight:700;color:#ca8a04;">
+                ${nino.tokens} 🪙
+              </div>
+            `;
+            
+            rankingContainer.appendChild(rankingCard);
+          });
+        })
+        .catch(err => console.error('Error cargando estadísticas de tokens:', err));
+    }
+    
+    // Llamar a la función para cargar estadísticas de tokens
+    cargarEstadisticasTokens();
+  </script>
+</body>
+</html>
+        })
+        .catch(err => console.error('Error cargando estadísticas de tokens:', err));
+    }
+    
+    // Llamar a la función para cargar estadísticas de tokens
+    cargarEstadisticasTokens();
   </script>
 </body>
 </html>

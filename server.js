@@ -79,6 +79,19 @@ db.run(`CREATE TABLE IF NOT EXISTS castigos_hist (
   FOREIGN KEY (nino_id) REFERENCES ninos(id)
 )`);
 
+// Migración para asegurar que existe la columna tokens
+db.get("SELECT COUNT(*) as count FROM pragma_table_info('ninos') WHERE name='tokens'", [], (err, row) => {
+  if (err || !row || row.count === 0) {
+    db.run("ALTER TABLE ninos ADD COLUMN tokens INTEGER DEFAULT 0", [], function(err) {
+      if (err) console.error("Error al añadir columna tokens:", err);
+      else console.log("Columna tokens añadida correctamente");
+      
+      // Inicializar tokens existentes a 0
+      db.run("UPDATE ninos SET tokens = 0 WHERE tokens IS NULL");
+    });
+  }
+});
+
 // Endpoint para añadir niño
 app.post('/api/ninos', (req, res) => {
   const { nombre, apellidos, grupo, dinero } = req.body;
@@ -373,7 +386,7 @@ app.get('/api/ninos/:id/info', (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) return res.status(400).json({ error: 'ID inválido' });
 
-  db.get('SELECT dinero FROM ninos WHERE id = ?', [id], (err, row) => {
+  db.get('SELECT dinero, COALESCE(tokens, 0) as tokens FROM ninos WHERE id = ?', [id], (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!row) return res.status(404).json({ error: 'Niño no encontrado' });
 
@@ -384,10 +397,33 @@ app.get('/api/ninos/:id/info', (req, res) => {
         if (err2) return res.status(500).json({ error: err2.message });
         res.json({
           saldo: row.dinero,
+          tokens: row.tokens,
           compradoHoy: row2 && row2.comprasHoy > 0
         });
       }
     );
+  });
+});
+
+// Endpoint para actualizar tokens
+app.post('/api/ninos/:id/tokens', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const cantidad = parseInt(req.body.cantidad, 10);
+  
+  if (isNaN(id) || isNaN(cantidad) || cantidad < 0) {
+    return res.status(400).json({ error: 'Datos inválidos' });
+  }
+  
+  db.get('SELECT COALESCE(tokens, 0) as tokens FROM ninos WHERE id = ?', [id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Niño no encontrado' });
+    
+    const nuevosTokens = row.tokens + cantidad;
+    
+    db.run('UPDATE ninos SET tokens = ? WHERE id = ?', [nuevosTokens, id], function(err2) {
+      if (err2) return res.status(500).json({ error: err2.message });
+      res.json({ success: true, nuevosTokens });
+    });
   });
 });
 

@@ -37,12 +37,26 @@
       <div id="productos"></div>
     </div>
 
+    <!-- Nueva sección para tokens -->
+    <div class="token-section">
+      <h2>🪙 Tokens</h2>
+      <div class="token-controls" style="display: flex; justify-content: center; align-items: center; gap: 10px; padding: 15px;">
+        <label for="tokens-cantidad" style="font-weight: 600; color: #475569;">Cantidad a añadir:</label>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button type="button" class="btn-cantidad" onclick="cambiarTokens(-1)">-</button>
+          <input type="number" id="tokens-cantidad" value="0" min="0" max="100" style="width: 60px; text-align: center; border: 2px solid #e2e8f0; border-radius: 4px; padding: 8px 4px; font-size: 1rem; font-weight: 600;">
+          <button type="button" class="btn-cantidad" onclick="cambiarTokens(1)">+</button>
+        </div>
+      </div>
+    </div>
+    <br>
+
     <div class="total-section">
       <p>Total: <span id="total">0.00</span> €</p>
     </div>
 
     <div class="button-group">
-      <button onclick="confirmarCompra()" class="btn-confirm">✅ Confirmar pedido</button>
+      <button onclick="confirmarCompra()" class="btn-confirm">✅ Confirmar</button>
     </div>
 
     <div id="mensaje"></div>
@@ -228,6 +242,14 @@
       0% { transform: scale(0.7) translateY(40px); opacity: 0; }
       80% { transform: scale(1.05) translateY(-6px); opacity: 1; }
       100% { transform: scale(1) translateY(0); opacity: 1; }
+    }
+    .token-section {
+      margin-top: 20px;
+      padding: 16px;
+      background: #fffab3;
+      border-radius: 8px;
+      border: 3px solid #e0c238;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
   </style>
   <script>
@@ -529,11 +551,18 @@
           ? `Sí <span style="font-size:0.95em;color:#991b1b;">(hasta ${new Date(castigos[ninoId]).toLocaleString('es-ES')})</span>`
           : 'No';
 
+        // Mostrar tokens si están disponibles
+        const tokens = data.tokens !== undefined ? data.tokens : 0;
+
         infoDiv.innerHTML = `
           <div class="info-nino-flex">
             <div>
               <span class="info-nino-label">💰 Saldo:</span>
               <span class="info-nino-value" style="color:#4338ca">${saldo}€</span>
+            </div>
+            <div>
+              <span class="info-nino-label">🪙 Tokens:</span>
+              <span class="info-nino-value" style="color:#ca8a04">${tokens}</span>
             </div>
             <div>
               <span class="info-nino-label">🗓️ ¿Ha comprado hoy?:</span>
@@ -579,6 +608,13 @@
       const nuevaCantidad = Math.max(0, Math.min(20, parseInt(input.value) + delta));
       input.value = nuevaCantidad;
       actualizarTotal();
+    };
+
+    // Función para cambiar tokens con botones
+    window.cambiarTokens = function(delta) {
+      const input = document.getElementById('tokens-cantidad');
+      const nuevaCantidad = Math.max(0, Math.min(100, parseInt(input.value || 0) + delta));
+      input.value = nuevaCantidad;
     };
 
     // Actualizar total cuando cambia cualquier cantidad
@@ -629,22 +665,27 @@
         }
       });
       
-      if (total === 0) {
-        mostrarMensaje('Selecciona al menos un producto.', 'red', false);
+      // Obtener tokens a añadir
+      const tokensInput = document.getElementById('tokens-cantidad');
+      const tokensAñadir = parseInt(tokensInput.value || 0);
+      
+      // Verificar si hay productos o tokens para procesar
+      if (total === 0 && tokensAñadir === 0) {
+        mostrarMensaje('Selecciona al menos un producto o añade tokens.', 'red', false);
         return;
       }
 
-      // Verificar si supera el límite diario
-      if (total > LIMITE_DIARIO) {
-        mostrarConfirmacionLimite(total, ninoId, productosSeleccionados);
+      // Verificar si supera el límite diario (solo si hay productos)
+      if (total > 0 && total > LIMITE_DIARIO) {
+        mostrarConfirmacionLimite(total, ninoId, productosSeleccionados, tokensAñadir);
         return;
       }
 
       // Proceder con la compra normal
-      procesarCompra(total, ninoId, productosSeleccionados);
+      procesarCompra(total, ninoId, productosSeleccionados, tokensAñadir);
     };
 
-    function mostrarConfirmacionLimite(total, ninoId, productos) {
+    function mostrarConfirmacionLimite(total, ninoId, productos, tokensAñadir) {
       const modal = document.createElement('div');
       modal.id = 'popup-modal';
       modal.innerHTML = `
@@ -662,7 +703,7 @@
 
       document.getElementById('confirmar-limite').onclick = () => {
         modal.remove();
-        procesarCompra(total, ninoId, productos);
+        procesarCompra(total, ninoId, productos, tokensAñadir);
       };
 
       document.getElementById('cancelar-limite').onclick = () => {
@@ -674,7 +715,7 @@
       };
     }
 
-    function procesarCompra(total, ninoId, productos) {
+    function procesarCompra(total, ninoId, productos, tokensAñadir) {
       // Crear resumen del pedido
       let resumenProductos = productos.map(p => {
         const producto = productosDB.find(prod => prod.id == p.id);
@@ -688,48 +729,78 @@
         return `${producto.nombre} x${p.cantidad} (${p.subtotal.toFixed(2)}€)`;
       }).join(', ');
 
-      // Restar saldo en el backend
-      fetch(`/api/ninos/${ninoId}/restar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cantidad: total })
-      })
-      .then(res => res.json())
-      .then(resp => {
-        if (resp.success) {
-          // Registrar la transacción
-          fetch('/api/transacciones', {
+      // Operaciones en paralelo
+      const operaciones = [];
+      
+      // Procesar compra si hay productos
+      if (total > 0) {
+        operaciones.push(
+          fetch(`/api/ninos/${ninoId}/restar`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              nino_id: ninoId,
-              nino_nombre: `${nino.nombre} ${nino.apellidos}`,
-              productos: productosTexto,
-              total: total
-            })
-          })
-          .then(() => {
-            mostrarMensaje(
-              `Pedido confirmado.<br><strong>Productos:</strong><br>${resumenProductos}<br><strong>Total gastado:</strong> ${total.toFixed(2)}€<br><strong>Saldo restante:</strong> ${resp.nuevoSaldo.toFixed(2)}€`,
-              'green',
-              true
-            );
-          })
-          .catch(() => {
-            // Mostrar mensaje aunque falle el log (la compra ya se procesó)
-            mostrarMensaje(
-              `Pedido confirmado.<br><strong>Productos:</strong><br>${resumenProductos}<br><strong>Total gastado:</strong> ${total.toFixed(2)}€<br><strong>Saldo restante:</strong> ${resp.nuevoSaldo.toFixed(2)}€`,
-              'green',
-              true
-            );
-          });
-        } else {
-          mostrarMensaje(`Error: ${resp.error || 'No se pudo procesar el pedido'}`, 'red', false);
-        }
-      })
-      .catch(() => mostrarMensaje('Error de conexión con el servidor.', 'red', false));
+            body: JSON.stringify({ cantidad: total })
+          }).then(res => res.json())
+        );
+      }
+      
+      // Procesar tokens si hay tokens para añadir
+      if (tokensAñadir > 0) {
+        operaciones.push(
+          fetch(`/api/ninos/${ninoId}/tokens`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cantidad: tokensAñadir })
+          }).then(res => res.json())
+        );
+      }
+      
+      Promise.all(operaciones)
+        .then(resultados => {
+          // Resultado de compra (si hubo)
+          const compraResult = total > 0 ? resultados[0] : null;
+          
+          // Resultado de tokens (si hubo)
+          const tokensResult = tokensAñadir > 0 ? 
+            (total > 0 ? resultados[1] : resultados[0]) : null;
+          
+          // Verificar si alguna operación falló
+          if ((compraResult && !compraResult.success) || (tokensResult && !tokensResult.success)) {
+            const error = (compraResult && !compraResult.success) ? compraResult.error : tokensResult.error;
+            mostrarMensaje(`Error: ${error || 'No se pudo completar la operación'}`, 'red', false);
+            return;
+          }
+          
+          // Si hay compra, registrar transacción
+          if (total > 0) {
+            fetch('/api/transacciones', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                nino_id: ninoId,
+                nino_nombre: `${nino.nombre} ${nino.apellidos}`,
+                productos: productosTexto,
+                total: total
+              })
+            }).catch(() => console.error('No se pudo registrar la transacción'));
+          }
+          
+          // Construir mensaje de éxito
+          let mensajeExito = '';
+          
+          if (total > 0) {
+            mensajeExito += `Pedido confirmado.<br><strong>Productos:</strong><br>${resumenProductos}<br><strong>Total gastado:</strong> ${total.toFixed(2)}€<br><strong>Saldo restante:</strong> ${compraResult.nuevoSaldo.toFixed(2)}€<br>`;
+          }
+          
+          if (tokensAñadir > 0) {
+            mensajeExito += `${total > 0 ? '<br>' : ''}`;
+            mensajeExito += `<strong>Tokens añadidos:</strong> ${tokensAñadir}<br><strong>Tokens totales:</strong> ${tokensResult.nuevosTokens}`;
+          }
+          
+          mostrarMensaje(mensajeExito, 'green', true);
+        })
+        .catch(() => mostrarMensaje('Error de conexión con el servidor.', 'red', false));
     }
-
+    
     function mostrarMensaje(msg, color, reloadOnOk) {
       // Elimina cualquier popup-modal anterior
       const prev = document.getElementById('popup-modal');
