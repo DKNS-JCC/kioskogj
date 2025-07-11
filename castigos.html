@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Castigos - Lista de Niños por Grupo</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Estilos específicos para la página de castigos */
+        .castigos-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 32px rgba(67,56,202,0.10);
+            padding: 32px 24px 32px 24px;
+        }
+        .grupo-ninos {
+            margin-bottom: 40px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .grupo-titulo {
+            font-size: 1.25rem;
+            color: #4338ca;
+            font-weight: 700;
+            margin-bottom: 16px;
+            margin-top: 0;
+            letter-spacing: 0.02em;
+        }
+        .ninos-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: stretch;
+        }
+        .nino-card {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            overflow: hidden;
+            position: relative;
+            min-width: 240px;
+            max-width: 300px;
+            flex: 0 1 260px;
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 0;
+        }
+        .nino-card.castigado {
+            border-color: #ef4444;
+            background: linear-gradient(120deg, #fee2e2 60%, #fecaca 100%);
+            box-shadow: 0 4px 18px rgba(239,68,68,0.13);
+        }
+        .nino-content {
+            padding: 18px 20px 20px 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .nino-info {
+            flex: 1;
+            margin-bottom: 12px;
+        }
+        .nino-info h3 {
+            margin: 0 0 6px 0;
+            color: #1f2937;
+            font-size: 1.1rem;
+            line-height: 1.2;
+            word-wrap: break-word;
+        }
+        .nino-info p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.97rem;
+        }
+        .nino-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: auto;
+            padding-top: 8px;
+            border-top: 1px solid #f1f5f9;
+        }
+        .btn-castigo {
+            background: linear-gradient(45deg, #ef4444, #b91c1c);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-weight: 600;
+            padding: 10px 0;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+            box-shadow: 0 2px 8px rgba(239,68,68,0.08);
+        }
+        .btn-castigo:hover {
+            background: linear-gradient(45deg, #dc2626, #7f1d1d);
+            transform: translateY(-1px) scale(1.03);
+        }
+        .castigado-label {
+            color: #b91c1c;
+            font-weight: bold;
+            font-size: 1.05rem;
+            margin-bottom: 6px;
+        }
+        .castigado-tiempo {
+            color: #991b1b;
+            font-size: 0.98rem;
+            margin-bottom: 2px;
+        }
+        @media (max-width: 900px) {
+            .castigos-container {
+                padding: 16px 4px;
+            }
+            .ninos-row {
+                gap: 12px;
+            }
+            .nino-card {
+                min-width: 180px;
+                max-width: 100%;
+            }
+        }
+        @media (max-width: 600px) {
+            .ninos-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .nino-card {
+                min-width: 0;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Castigos</h1>
+    <div class="castigos-container">
+        <div style="text-align:center; margin-bottom:32px;">
+            <button onclick="window.location.href='index.html'" style="background:linear-gradient(45deg,#64748b,#475569);color:white;border:none;border-radius:6px;padding:15px 35px;font-size:1.1rem;font-weight:600;cursor:pointer;">
+                ← Volver al kiosko
+            </button>
+        </div>
+        <!-- Buscador de niños -->
+        <div style="text-align:center; margin-bottom:28px;">
+            <input id="buscador-nino" type="text" placeholder="Buscar niño por nombre o apellidos..." style="width:320px;max-width:95vw;padding:12px 18px;border:2px solid #4338ca;border-radius:8px;font-size:1.1em;box-shadow:0 2px 8px #4338ca22;">
+        </div>
+        <div id="contenedor-grupos"></div>
+        <div style="text-align:center; margin-top:32px;">
+            <button onclick="window.location.href='index.html'" style="background:linear-gradient(45deg,#64748b,#475569);color:white;border:none;border-radius:6px;padding:15px 35px;font-size:1.1rem;font-weight:600;cursor:pointer;">
+                ← Volver al kiosko
+            </button>
+        </div>
+    </div>
+    <!-- Modal de confirmación -->
+    <div id="modal-confirm" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.35); align-items:center; justify-content:center; z-index:9999;">
+        <div style="background:white; border-radius:8px; padding:32px 24px; max-width:320px; width:90%; box-shadow:0 8px 32px rgba(67,56,202,0.13); text-align:center;">
+            <div style="font-size:1.2rem; color:#b91c1c; font-weight:bold; margin-bottom:18px;">
+                ¿Quitar castigo a <span id="modal-nombre"></span>?
+            </div>
+            <div style="margin-bottom:22px; color:#991b1b;">Esta acción es irreversible.</div>
+            <button id="btn-confirmar" style="background:linear-gradient(45deg,#ef4444,#b91c1c);color:white;border:none;border-radius:4px;padding:10px 24px;font-size:1rem;font-weight:600;cursor:pointer;margin-right:10px;">Sí, quitar castigo</button>
+            <button id="btn-cancelar" style="background:#e5e7eb;color:#374151;border:none;border-radius:4px;padding:10px 24px;font-size:1rem;font-weight:600;cursor:pointer;">Cancelar</button>
+        </div>
+    </div>
+    <script>
+        let modalId = null;
+        let modalNombre = '';
+
+        function mostrarConfirmacion(id, nombre) {
+            modalId = id;
+            modalNombre = nombre;
+            document.getElementById('modal-nombre').textContent = nombre;
+            document.getElementById('modal-confirm').style.display = 'flex';
+        }
+        function ocultarConfirmacion() {
+            document.getElementById('modal-confirm').style.display = 'none';
+            modalId = null;
+            modalNombre = '';
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('btn-confirmar').onclick = async function() {
+                if (modalId) {
+                    await eliminarCastigo(modalId);
+                    ocultarConfirmacion();
+                }
+            };
+            document.getElementById('btn-cancelar').onclick = ocultarConfirmacion;
+
+            // Buscador
+            document.getElementById('buscador-nino').addEventListener('input', function() {
+                renderTarjetasFiltradas(this.value);
+            });
+        });
+
+        function renderTarjetasFiltradas(valor) {
+            const texto = valor.trim().toLowerCase();
+            const contenedor = document.getElementById('contenedor-grupos');
+            contenedor.innerHTML = '';
+            let ninosFiltrados = todosNinos;
+            if (texto) {
+                ninosFiltrados = todosNinos.filter(n =>
+                    (n.nombre + ' ' + n.apellidos).toLowerCase().includes(texto)
+                );
+            }
+            if (ninosFiltrados.length === 0) {
+                contenedor.innerHTML = '<div style="color:#991b1b;font-weight:600;padding:18px;text-align:center;">No se encontraron coincidencias.</div>';
+                return;
+            }
+            // Agrupar por grupo
+            const grupos = {};
+            ninosFiltrados.forEach(nino => {
+                const grupo = nino.grupo;
+                if (!grupos[grupo]) grupos[grupo] = [];
+                grupos[grupo].push(nino);
+            });
+            Object.keys(grupos).sort((a, b) => a - b).forEach(grupo => {
+                const divGrupo = document.createElement('div');
+                divGrupo.className = 'grupo-ninos';
+                divGrupo.innerHTML = `<div class="grupo-titulo">Grupo ${grupo}</div>`;
+                const row = document.createElement('div');
+                row.className = 'ninos-row';
+                grupos[grupo].forEach(nino => {
+                    const castigadoHasta = castigosActuales[nino.id];
+                    const castigado = castigadoHasta && castigadoHasta > Date.now();
+                    const card = document.createElement('div');
+                    card.className = 'nino-card' + (castigado ? ' castigado' : '');
+                    card.innerHTML = `
+                        <div class="nino-content">
+                            <div class="nino-info">
+                                <h3>${nino.nombre} ${nino.apellidos}</h3>
+                                ${castigado ? `
+                                    <div class="castigado-label">Castigado hasta:</div>
+                                    <div class="castigado-tiempo" id="tiempo-${nino.id}">${new Date(castigadoHasta).toLocaleString('es-ES')}</div>
+                                    <div class="castigado-tiempo" id="restante-${nino.id}">Quedan: ${tiempoRestante(castigadoHasta)}</div>
+                                ` : ''}
+                            </div>
+                            <div class="nino-actions">
+                                ${!castigado 
+                                    ? `<button class="btn-castigo" title="Añadir castigo" onclick="castigarNino(${nino.id})">Añadir castigo</button>`
+                                    : `<button class="btn-castigo" style="background:linear-gradient(45deg,#64748b,#475569);margin-top:6px" onclick="mostrarConfirmacion(${nino.id}, '${nino.nombre.replace(/'/g,"\\'")} ${nino.apellidos.replace(/'/g,"\\'")}')">Eliminar castigo</button>`
+                                }
+                            </div>
+                        </div>
+                    `;
+                    row.appendChild(card);
+                    // Si está castigado, actualiza el tiempo restante cada minuto
+                    if (castigado) {
+                        setInterval(() => {
+                            const el = document.getElementById(`restante-${nino.id}`);
+                            if (el) el.textContent = 'Quedan: ' + tiempoRestante(castigadoHasta);
+                        }, 60000);
+                    }
+                });
+                divGrupo.appendChild(row);
+                contenedor.appendChild(divGrupo);
+            });
+        }
+
+        async function eliminarCastigo(id) {
+            await fetch(`/api/ninos/${id}/castigar`, { method: 'DELETE' });
+            await cargarNinos();
+        }
+
+        function tiempoRestante(ms) {
+            const diff = ms - Date.now();
+            if (diff <= 0) return 'Finalizado';
+            const horas = Math.floor(diff / (60 * 60 * 1000));
+            const minutos = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
+            return `${horas}h ${minutos}m`;
+        }
+
+        async function castigarNino(id) {
+            await fetch(`/api/ninos/${id}/castigar`, { method: 'POST' });
+            await cargarNinos();
+        }
+
+        let todosNinos = [];
+        let castigosActuales = {};
+
+        async function cargarNinos() {
+            const [ninosRes, castigosRes] = await Promise.all([
+                fetch('/api/ninos'),
+                fetch('/api/castigos')
+            ]);
+            const ninos = await ninosRes.json();
+            todosNinos = ninos; // Guardar para el buscador
+            const castigos = await castigosRes.json();
+            castigosActuales = castigos;
+            renderTarjetasFiltradas(document.getElementById('buscador-nino').value);
+        }
+        cargarNinos();
+    </script>
+</body>
+</html>
+                        }, 60000);
+                    }
+                });
+                divGrupo.appendChild(row);
+                contenedor.appendChild(divGrupo);
+            });
+        }
+        cargarNinos();
+    </script>
+</body>
+</html>

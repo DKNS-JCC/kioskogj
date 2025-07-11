@@ -9,8 +9,9 @@
   <div class="kiosk-container">
     <h1>🏪 Kiosko GJ</h1>
     <div class="main-actions-bar main-actions-bar-right">
-      <button onclick="window.location.href='stats.html'" class="btn-stats-top" title="Ver estadísticas">📊</button>
-      <button onclick="window.location.href='setup.html'" class="btn-settings-corner" title="Ajustes">⚙️</button>
+      <button onclick="window.location.href='stats.html'" class="btn-stats-top" title="Ver estadísticas">📊 REGISTROS</button>
+      <button onclick="window.location.href='setup.html'" class="btn-settings-corner" title="Ajustes">⚙️ AJUSTES</button>
+      <button onclick="window.location.href='castigos.html'" class="btn-castigos-corner" title="Ver castigos">👿 CASTIGOS</button>
     </div>
 
     <div class="user-selection">
@@ -48,10 +49,187 @@
   </div>
   <!-- Botón de ayuda flotante y barra de acciones vertical -->
   <div class="floating-actions-vertical">
-    <button id="btn-ayuda" class="btn-ayuda-rect" onclick="iniciarTutorial()" title="Ayuda">?</button>
-    <button onclick="window.location.href='stats.html'" class="btn-stats-vertical" title="Ver estadísticas">📊</button>
-    <button onclick="window.location.href='setup.html'" class="btn-settings-vertical" title="Ajustes">⚙️</button>
+    <button id="btn-ayuda" class="btn-ayuda-rect" onclick="iniciarTutorial()" title="Ayuda">
+      <span style="font-size:1.3em;">?</span>
+      <span class="btn-label">AYUDA</span>
+    </button>
+    <button onclick="window.location.href='stats.html'" class="btn-stats-vertical" title="Ver estadísticas">
+      <span style="font-size:1.3em;">📊</span>
+      <span class="btn-label">REGISTROS</span>
+    </button>
+    <button onclick="window.location.href='setup.html'" class="btn-settings-vertical" title="Ajustes">
+      <span style="font-size:1.3em;">⚙️</span>
+      <span class="btn-label">AJUSTES</span>
+    </button>
+    <button onclick="window.location.href='castigos.html'" class="btn-castigos-vertical" title="Ver castigos" style="background:linear-gradient(45deg,#ef4444,#b91c1c);">
+      <span style="font-size:1.3em;">👿</span>
+      <span class="btn-label">CASTIGOS</span>
+    </button>
   </div>
+  <!-- Easter egg DKNS/Cuadrado -->
+  <div id="easteregg-dkns" style="display:none; position:fixed; bottom:24px; left:24px; z-index:99999; background:rgba(67,56,202,0.97); color:white; padding:22px 28px; border-radius:16px; box-shadow:0 8px 32px rgba(67,56,202,0.18); font-size:1.15em; font-family:monospace; text-align:center;">
+    <div style="font-size:2em; margin-bottom:8px;">🐉</div>
+    <div><b>DKNS</b> - Powered by DKNSoftware</div>
+    <div style="font-size:0.95em; margin-top:8px;">¡Gracias por usar la app!<br>¿Sabías que Cuadrado es el mejor? ¿NO? Pues deberias saberlo</div>
+    <button onclick="document.getElementById('easteregg-dkns').style.display='none'" style="margin-top:14px; background:#64748b; color:white; border:none; border-radius:6px; padding:7px 18px; font-size:1em; font-weight:600; cursor:pointer;">Cerrar</button>
+  </div>
+  <style>
+    /* Tutorial popup styles mejorados */
+    .tutorial-popup {
+      position: fixed;
+      z-index: 20000;
+      background: #f8fafc;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(67,56,202,0.18);
+      padding: 22px 22px 18px 22px;
+      min-width: 260px;
+      max-width: 340px;
+      border: 2px solid #4338ca;
+      font-size: 1rem;
+      color: #1e293b;
+      transition: box-shadow 0.2s;
+      pointer-events: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .tutorial-popup .tutorial-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .tutorial-popup .tutorial-numero {
+      background: #4338ca;
+      color: white;
+      border-radius: 6px;
+      padding: 2px 10px;
+      font-size: 0.95em;
+      font-weight: bold;
+      margin-right: 8px;
+    }
+    .tutorial-popup h3 {
+      font-size: 1.1em;
+      margin: 0;
+      flex: 1;
+      color: #4338ca;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    .tutorial-popup .tutorial-cerrar {
+      background: none;
+      border: none;
+      color: #dc2626;
+      font-size: 1.2em;
+      font-weight: bold;
+      cursor: pointer;
+      margin-left: 8px;
+      transition: color 0.2s;
+      line-height: 1;
+      padding: 0 6px;
+      border-radius: 4px;
+      height: 28px;
+      width: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .tutorial-popup .tutorial-cerrar:hover {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+    .tutorial-popup .tutorial-contenido {
+      margin-bottom: 16px;
+      font-size: 1.05em;
+      color: #374151;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+    .tutorial-popup .tutorial-botones {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .tutorial-popup .tutorial-botones button {
+      background: linear-gradient(45deg, #4338ca, #6b21a8);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 7px 18px;
+      font-size: 1em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      box-shadow: 0 2px 8px rgba(67,56,202,0.10);
+      min-width: 110px;
+      margin: 0;
+      white-space: nowrap;
+      outline: none;
+    }
+    .tutorial-popup .tutorial-botones button:hover {
+      background: linear-gradient(45deg, #3730a3, #581c87);
+    }
+    .tutorial-destacado {
+      outline: 3px solid #4338ca !important;
+      box-shadow: 0 0 0 6px #c7d2fe !important;
+      border-radius: 8px !important;
+      position: relative;
+      z-index: 19999 !important;
+      transition: box-shadow 0.2s;
+    }
+    /* Popup positioning */
+    .tutorial-popup.tutorial-arriba {
+      transform: translate(-50%, -100%);
+      top: 0;
+      left: 50%;
+    }
+    .tutorial-popup.tutorial-abajo {
+      transform: translate(-50%, 10px);
+      top: unset;
+      left: 50%;
+      bottom: unset;
+    }
+    .tutorial-popup.tutorial-izquierda {
+      transform: translate(-105%, -50%);
+      left: 0;
+      top: 50%;
+    }
+    .tutorial-popup.tutorial-derecha {
+      transform: translate(10px, -50%);
+      left: unset;
+      right: 0;
+      top: 50%;
+    }
+    @media (max-width: 600px) {
+      .tutorial-popup {
+        min-width: 180px;
+        max-width: 95vw;
+        padding: 12px 8px 10px 8px;
+        font-size: 0.98em;
+      }
+      .tutorial-popup .tutorial-botones {
+        flex-direction: column;
+        gap: 8px;
+        align-items: stretch;
+      }
+      .tutorial-popup .tutorial-botones button {
+        min-width: 0;
+        width: 100%;
+      }
+    }
+
+    #easteregg-dkns {
+      animation: dkns-pop 0.4s cubic-bezier(.68,-0.55,.27,1.55);
+    }
+    @keyframes dkns-pop {
+      0% { transform: scale(0.7) translateY(40px); opacity: 0; }
+      80% { transform: scale(1.05) translateY(-6px); opacity: 1; }
+      100% { transform: scale(1) translateY(0); opacity: 1; }
+    }
+  </style>
   <script>
     let productosDB = [];
     let LIMITE_DIARIO = 2.50; // Valor por defecto
@@ -67,7 +245,7 @@
       {
         elemento: '#productos',
         titulo: 'Productos disponibles',
-        mensaje: 'Puedes hacer clic en cualquier producto para añadir uno a tu pedido. También puedes usar los botones + y - para ajustar la cantidad.',
+        mensaje: 'Puedes usar los botones + y - para ajustar la cantidad.',
         posicion: 'arriba'
       },
       {
@@ -79,13 +257,7 @@
       {
         elemento: '.btn-confirm',
         titulo: 'Confirmar pedido',
-        mensaje: 'Una vez seleccionados los productos, haz clic aquí para finalizar la compra.',
-        posicion: 'izquierda'
-      },
-      {
-        elemento: '.btn-settings-corner',
-        titulo: 'Ajustes',
-        mensaje: 'Accede a la pantalla de administración para gestionar niños y productos.',
+        mensaje: 'Una vez seleccionados los productos, haz clic aquí para finalizar la compra. Ojo a los castigados',
         posicion: 'izquierda'
       }
     ];
@@ -96,31 +268,35 @@
     function iniciarTutorial() {
       pasoActual = 0;
       mostrarPasoTutorial();
-      
-      // Ocultar temporalmente el botón de ayuda durante el tutorial
-      document.getElementById('btn-ayuda').style.display = 'none';
+      // No modificar el botón de ayuda
     }
     
     function mostrarPasoTutorial() {
-      // Eliminar popup anterior si existe
       if (popupTutorial) {
         popupTutorial.remove();
+        popupTutorial = null;
       }
-      
       if (pasoActual >= pasosTutorial.length) {
         finalizarTutorial();
         return;
       }
-      
       const paso = pasosTutorial[pasoActual];
-      const elemento = document.querySelector(paso.elemento);
-      
+      // Permitir múltiples selectores separados por coma
+      let elemento = null;
+      if (paso.elemento.includes(',')) {
+        const selectors = paso.elemento.split(',').map(s => s.trim());
+        for (const sel of selectors) {
+          elemento = document.querySelector(sel);
+          if (elemento) break;
+        }
+      } else {
+        elemento = document.querySelector(paso.elemento);
+      }
       if (!elemento) {
         pasoActual++;
         mostrarPasoTutorial();
         return;
       }
-      
       // Crear popup
       popupTutorial = document.createElement('div');
       popupTutorial.className = `tutorial-popup tutorial-${paso.posicion}`;
@@ -138,59 +314,78 @@
           <button onclick="pasoSiguiente()">${pasoActual < pasosTutorial.length - 1 ? 'Siguiente »' : 'Finalizar'}</button>
         </div>
       `;
-      
       document.body.appendChild(popupTutorial);
-      
-      // Posicionar popup
-      posicionarPopup(popupTutorial, elemento, paso.posicion);
-      
+
       // Destacar el elemento actual
       elemento.classList.add('tutorial-destacado');
+
+      // Posicionar popup
+      setTimeout(() => {
+        posicionarPopup(popupTutorial, elemento, paso.posicion);
+      }, 0);
     }
-    
+
     function posicionarPopup(popup, elemento, posicion) {
       const rect = elemento.getBoundingClientRect();
-      
+      const popupRect = popup.getBoundingClientRect();
+      let top = 0, left = 0;
       switch(posicion) {
         case 'arriba':
-          popup.style.left = `${rect.left + rect.width/2}px`;
-          popup.style.top = `${rect.top - 10}px`;
+          top = window.scrollY + rect.top - popupRect.height - 12;
+          left = window.scrollX + rect.left + rect.width / 2 - popupRect.width / 2;
           break;
         case 'abajo':
-          popup.style.left = `${rect.left + rect.width/2}px`;
-          popup.style.top = `${rect.bottom + 10}px`;
+          top = window.scrollY + rect.bottom + 12;
+          left = window.scrollX + rect.left + rect.width / 2 - popupRect.width / 2;
           break;
         case 'izquierda':
-          popup.style.left = `${rect.left - 10}px`;
-          popup.style.top = `${rect.top + rect.height/2}px`;
+          top = window.scrollY + rect.top + rect.height / 2 - popupRect.height / 2;
+          left = window.scrollX + rect.left - popupRect.width - 12;
           break;
         case 'derecha':
-          popup.style.left = `${rect.right + 10}px`;
-          popup.style.top = `${rect.top + rect.height/2}px`;
+          top = window.scrollY + rect.top + rect.height / 2 - popupRect.height / 2;
+          left = window.scrollX + rect.right + 12;
           break;
+        default:
+          top = window.scrollY + rect.bottom + 12;
+          left = window.scrollX + rect.left + rect.width / 2 - popupRect.width / 2;
       }
+      // Ajuste para que no se salga de la pantalla
+      top = Math.max(8, Math.min(top, window.innerHeight - popupRect.height - 8));
+      left = Math.max(8, Math.min(left, window.innerWidth - popupRect.width - 8));
+      popup.style.top = `${top}px`;
+      popup.style.left = `${left}px`;
     }
     
     function pasoSiguiente() {
-      // Quitar destacado del elemento actual
       const pasoActualObj = pasosTutorial[pasoActual];
-      const elementoActual = document.querySelector(pasoActualObj.elemento);
-      if (elementoActual) {
-        elementoActual.classList.remove('tutorial-destacado');
+      // Quitar destacado del elemento actual
+      if (pasoActualObj.elemento.includes(',')) {
+        const selectors = pasoActualObj.elemento.split(',').map(s => s.trim());
+        for (const sel of selectors) {
+          const el = document.querySelector(sel);
+          if (el) el.classList.remove('tutorial-destacado');
+        }
+      } else {
+        const elementoActual = document.querySelector(pasoActualObj.elemento);
+        if (elementoActual) elementoActual.classList.remove('tutorial-destacado');
       }
-      
       pasoActual++;
       mostrarPasoTutorial();
     }
     
     function pasoPrevio() {
-      // Quitar destacado del elemento actual
       const pasoActualObj = pasosTutorial[pasoActual];
-      const elementoActual = document.querySelector(pasoActualObj.elemento);
-      if (elementoActual) {
-        elementoActual.classList.remove('tutorial-destacado');
+      if (pasoActualObj.elemento.includes(',')) {
+        const selectors = pasoActualObj.elemento.split(',').map(s => s.trim());
+        for (const sel of selectors) {
+          const el = document.querySelector(sel);
+          if (el) el.classList.remove('tutorial-destacado');
+        }
+      } else {
+        const elementoActual = document.querySelector(pasoActualObj.elemento);
+        if (elementoActual) elementoActual.classList.remove('tutorial-destacado');
       }
-      
       pasoActual--;
       mostrarPasoTutorial();
     }
@@ -200,14 +395,11 @@
         popupTutorial.remove();
         popupTutorial = null;
       }
-      
       // Quitar destacado de todos los elementos
       document.querySelectorAll('.tutorial-destacado').forEach(el => {
         el.classList.remove('tutorial-destacado');
       });
-      
-      // Mostrar nuevamente el botón de ayuda
-      document.getElementById('btn-ayuda').style.display = 'block';
+      // No modificar el botón de ayuda
     }
 
     // Cargar configuración al inicio
@@ -301,7 +493,7 @@
         });
       });
 
-    // Mostrar info de saldo y compra al seleccionar niño
+    // Mostrar info de saldo, compra y castigo al seleccionar niño
     document.getElementById('nino').addEventListener('change', function() {
       const ninoId = this.value;
       const infoDiv = document.getElementById('info-nino');
@@ -311,36 +503,54 @@
         infoDiv.textContent = '';
         return;
       }
-      // Consultar saldo y si ya ha comprado hoy
-      fetch(`/api/ninos/${ninoId}/info`)
-        .then(res => {
+      // Consultar saldo, si ha comprado hoy y si está castigado
+      Promise.all([
+        fetch(`/api/ninos/${ninoId}/info`).then(res => {
           if (!res.ok) throw new Error('No se pudo consultar el niño');
           return res.json();
-        })
-        .then(data => {
-          let saldo = typeof data.saldo === 'number' ? data.saldo.toFixed(2) : '--';
-          let comprado = data.compradoHoy ? 'Sí' : 'No';
-          let color = data.compradoHoy ? '#dc2626' : '#10b981';
-          let icon = data.compradoHoy
-            ? '<span class="info-nino-icon" style="background:#fee2e2;color:#dc2626;">&#9888;</span>'
-            : '<span class="info-nino-icon" style="background:#d1fae5;color:#10b981;">&#10003;</span>';
-          infoDiv.innerHTML = `
-            <div class="info-nino-flex">
-              <div>
-                <span class="info-nino-label">💰 Saldo:</span>
-                <span class="info-nino-value" style="color:#4338ca">${saldo}€</span>
-              </div>
-              <div>
-                <span class="info-nino-label">🗓️ ¿Ha comprado hoy?:</span>
-                <span class="info-nino-value" style="color:${color};font-weight:700">${comprado}</span>
-                ${icon}
-              </div>
+        }),
+        fetch('/api/castigos').then(res => res.json())
+      ])
+      .then(([data, castigos]) => {
+        let saldo = typeof data.saldo === 'number' ? data.saldo.toFixed(2) : '--';
+        let comprado = data.compradoHoy ? 'Sí' : 'No';
+        let color = data.compradoHoy ? '#dc2626' : '#10b981';
+        let icon = data.compradoHoy
+          ? '<span class="info-nino-icon" style="background:#fee2e2;color:#dc2626;">&#9888;</span>'
+          : '<span class="info-nino-icon" style="background:#d1fae5;color:#10b981;">&#10003;</span>';
+
+        // Castigo
+        let castigado = castigos[ninoId] && castigos[ninoId] > Date.now();
+        let castigoColor = castigado ? '#dc2626' : '#10b981';
+        let castigoIcon = castigado
+          ? '<span class="info-nino-icon" style="background:#fee2e2;color:#dc2626;">&#9940;</span>'
+          : '<span class="info-nino-icon" style="background:#d1fae5;color:#10b981;">&#10003;</span>';
+        let castigoTexto = castigado
+          ? `Sí <span style="font-size:0.95em;color:#991b1b;">(hasta ${new Date(castigos[ninoId]).toLocaleString('es-ES')})</span>`
+          : 'No';
+
+        infoDiv.innerHTML = `
+          <div class="info-nino-flex">
+            <div>
+              <span class="info-nino-label">💰 Saldo:</span>
+              <span class="info-nino-value" style="color:#4338ca">${saldo}€</span>
             </div>
-          `;
-        })
-        .catch(() => {
-          infoDiv.innerHTML = '<div class="info-nino-error">⚠️ No se pudo consultar el niño seleccionado.</div>';
-        });
+            <div>
+              <span class="info-nino-label">🗓️ ¿Ha comprado hoy?:</span>
+              <span class="info-nino-value" style="color:${color};font-weight:700">${comprado}</span>
+              ${icon}
+            </div>
+            <div>
+              <span class="info-nino-label">🚫 ¿Está castigado?:</span>
+              <span class="info-nino-value" style="color:${castigoColor};font-weight:700">${castigoTexto}</span>
+              ${castigoIcon}
+            </div>
+          </div>
+        `;
+      })
+      .catch(() => {
+        infoDiv.innerHTML = '<div class="info-nino-error">⚠️ No se pudo consultar el niño seleccionado.</div>';
+      });
     });
 
     document.getElementById('grupo').addEventListener('change', function() {
@@ -543,7 +753,24 @@
     // Inicializar la aplicación
     cargarConfiguracion();
     cargarProductos();
+
+    // Easter egg DKNS/Cuadrado: aparece al pulsar "C" en mayúsculas (Shift+C)
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'C' && !e.ctrlKey && !e.altKey) {
+        mostrarEasterEgg();
+      }
+    });
+    function mostrarEasterEgg() {
+      const egg = document.getElementById('easteregg-dkns');
+      if (egg) egg.style.display = 'block';
+    }
+    // También puedes cerrar con Escape
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        const egg = document.getElementById('easteregg-dkns');
+        if (egg) egg.style.display = 'none';
+      }
+    });
   </script>
 </body>
-</html>
 </html>

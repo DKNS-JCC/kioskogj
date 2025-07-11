@@ -62,6 +62,13 @@ db.run(`CREATE TABLE IF NOT EXISTS transacciones (
   FOREIGN KEY (nino_id) REFERENCES ninos(id)
 )`);
 
+// Crear tabla de castigos si no existe
+db.run(`CREATE TABLE IF NOT EXISTS castigos (
+  nino_id INTEGER PRIMARY KEY,
+  hasta INTEGER NOT NULL,
+  FOREIGN KEY (nino_id) REFERENCES ninos(id)
+)`);
+
 // Endpoint para añadir niño
 app.post('/api/ninos', (req, res) => {
   const { nombre, apellidos, grupo, dinero } = req.body;
@@ -371,6 +378,46 @@ app.get('/api/ninos/:id/info', (req, res) => {
         });
       }
     );
+  });
+});
+
+// Endpoint para castigar a un niño por 1 día
+app.post('/api/ninos/:id/castigar', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'ID inválido' });
+  const hasta = Date.now() + 24 * 60 * 60 * 1000;
+  db.run(
+    `INSERT OR REPLACE INTO castigos (nino_id, hasta) VALUES (?, ?)`,
+    [id, hasta],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true, hasta });
+    }
+  );
+});
+
+// Endpoint para eliminar el castigo de un niño
+app.delete('/api/ninos/:id/castigar', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'ID inválido' });
+  db.run(`DELETE FROM castigos WHERE nino_id = ?`, [id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
+// Endpoint para obtener todos los castigos activos
+app.get('/api/castigos', (req, res) => {
+  const ahora = Date.now();
+  // Elimina castigos expirados antes de devolver
+  db.run(`DELETE FROM castigos WHERE hasta < ?`, [ahora], function() {
+    db.all(`SELECT * FROM castigos WHERE hasta >= ?`, [ahora], (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      // Devuelve como { nino_id: hasta, ... }
+      const castigos = {};
+      rows.forEach(row => { castigos[row.nino_id] = row.hasta; });
+      res.json(castigos);
+    });
   });
 });
 
