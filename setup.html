@@ -107,13 +107,13 @@
     </div>
 
     <!-- Botones de importar/exportar Excel al final -->
-    <div class="excel-actions">
+    <div class="excel-actions" style="display:flex;gap:18px;justify-content:center;align-items:center;margin:32px 0 0 0;">
       <input type="file" id="importar-excel" accept=".xlsx,.xls" style="display:none">
-      <button id="btn-importar-excel" type="button">📥 Importar Excel</button>
-      <button id="btn-exportar-excel" type="button">📤 Exportar Excel</button>
+      <button id="btn-importar-excel" type="button" style="padding:14px 32px;font-size:1.08em;border-radius:8px;background:linear-gradient(45deg,#059669,#10b981);color:white;font-weight:600;box-shadow:0 2px 8px #05966922;">📥 Importar Excel</button>
+      <button id="btn-exportar-excel" type="button" style="padding:14px 32px;font-size:1.08em;border-radius:8px;background:linear-gradient(45deg,#4338ca,#6b21a8);color:white;font-weight:600;box-shadow:0 2px 8px #4338ca22;">📤 Exportar Excel</button>
     </div>
 
-    <div class="setup-actions">
+    <div class="setup-actions" style="display:flex;gap:18px;justify-content:center;align-items:center;margin-top:30px;">
       <button onclick="window.location.href='index.html'" class="btn-back">← Volver al kiosko</button>
       <button onclick="window.location.href='stats.html'" class="btn-stats">📊 Ver estadísticas</button>
     </div>
@@ -508,14 +508,22 @@
         alert('No hay niños para exportar.');
         return;
       }
+      // Separar apellidos en dos columnas si es posible
       const data = [
-        ['Nombre', 'Apellido', 'Grupo', 'Dinero']
+        ['GRUPO', 'NOMBRE', 'APELLIDO', 'APELLIDO', 'DINERO']
       ];
       todosLosNinos.forEach(nino => {
+        let apellido1 = '', apellido2 = '';
+        if (nino.apellidos) {
+          const partes = nino.apellidos.trim().split(' ');
+          apellido1 = partes[0] || '';
+          apellido2 = partes.slice(1).join(' ') || '';
+        }
         data.push([
-          nino.nombre,
-          nino.apellidos,
           nino.grupo,
+          nino.nombre,
+          apellido1,
+          apellido2,
           nino.dinero
         ]);
       });

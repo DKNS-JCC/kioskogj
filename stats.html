@@ -46,6 +46,15 @@
             <span class="stat-subtitle" id="top-cliente-amount">0€ gastado</span>
           </div>
         </div>
+        
+        <div class="stat-card">
+          <div class="stat-icon" style="background: linear-gradient(45deg, #ef4444, #b91c1c);">👿</div>
+          <div class="stat-info">
+            <h3>Top más castigado</h3>
+            <p class="stat-number" id="top-castigado">-</p>
+            <span class="stat-subtitle" id="top-castigado-veces">0 veces</span>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -203,7 +212,33 @@
             document.getElementById('top-cliente').textContent = topCliente.nino_nombre;
             document.getElementById('top-cliente-amount').textContent = `${topCliente.gastado.toFixed(2)}€ gastado`;
           }
-          
+
+          // Top castigado (nuevo)
+          fetch('/api/ninos')
+            .then(res => res.json())
+            .then(ninos => {
+              fetch('/api/castigos-historico')
+                .then(res => res.json())
+                .then(hist => {
+                  // hist: { nino_id: veces, ... }
+                  let max = 0, topId = null;
+                  for (const [id, veces] of Object.entries(hist)) {
+                    if (veces > max) {
+                      max = veces;
+                      topId = id;
+                    }
+                  }
+                  if (topId && ninos.length > 0) {
+                    const nino = ninos.find(n => n.id == topId);
+                    document.getElementById('top-castigado').textContent = nino ? `${nino.nombre} ${nino.apellidos}` : `ID ${topId}`;
+                    document.getElementById('top-castigado-veces').textContent = `${max} veces`;
+                  } else {
+                    document.getElementById('top-castigado').textContent = '-';
+                    document.getElementById('top-castigado-veces').textContent = '0 veces';
+                  }
+                });
+            });
+
           // Generar gráficos para campamento corto
           if (stats.ventasPorDia && stats.ventasPorDia.length > 0) {
             generarGraficoVentasDiarias(stats.ventasPorDia);

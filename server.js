@@ -69,6 +69,16 @@ db.run(`CREATE TABLE IF NOT EXISTS castigos (
   FOREIGN KEY (nino_id) REFERENCES ninos(id)
 )`);
 
+// Crear tabla de historial de castigos si no existe
+db.run(`CREATE TABLE IF NOT EXISTS castigos_hist (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nino_id INTEGER NOT NULL,
+  fecha INTEGER NOT NULL,
+  hasta INTEGER NOT NULL,
+  revocado INTEGER DEFAULT 0,
+  FOREIGN KEY (nino_id) REFERENCES ninos(id)
+)`);
+
 // Endpoint para añadir niño
 app.post('/api/ninos', (req, res) => {
   const { nombre, apellidos, grupo, dinero } = req.body;
@@ -381,17 +391,29 @@ app.get('/api/ninos/:id/info', (req, res) => {
   });
 });
 
-// Endpoint para castigar a un niño por 1 día
+// Endpoint para castigar a un niño por 12 horas
 app.post('/api/ninos/:id/castigar', (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) return res.status(400).json({ error: 'ID inválido' });
-  const hasta = Date.now() + 24 * 60 * 60 * 1000;
+  const ahora = Date.now();
+  const hasta = ahora + 12 * 60 * 60 * 1000; // 12 horas
+
+  // Registrar en historial SIEMPRE
   db.run(
-    `INSERT OR REPLACE INTO castigos (nino_id, hasta) VALUES (?, ?)`,
-    [id, hasta],
+    `INSERT INTO castigos_hist (nino_id, fecha, hasta, revocado) VALUES (?, ?, ?, 0)`,
+    [id, ahora, hasta],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
-      res.json({ success: true, hasta });
+
+      // Añadir/actualizar castigo activo
+      db.run(
+        `INSERT OR REPLACE INTO castigos (nino_id, hasta) VALUES (?, ?)`,
+        [id, hasta],
+        function(err2) {
+          if (err2) return res.status(500).json({ error: err2.message });
+          res.json({ success: true, hasta });
+        }
+      );
     }
   );
 });
@@ -400,10 +422,20 @@ app.post('/api/ninos/:id/castigar', (req, res) => {
 app.delete('/api/ninos/:id/castigar', (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) return res.status(400).json({ error: 'ID inválido' });
-  db.run(`DELETE FROM castigos WHERE nino_id = ?`, [id], function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true });
-  });
+
+  // Marcar como revocado en el historial el castigo activo (si existe y sigue vigente)
+  const ahora = Date.now();
+  db.run(
+    `UPDATE castigos_hist SET revocado = 1 WHERE nino_id = ? AND revocado = 0 AND hasta > ?`,
+    [id, ahora],
+    function() {
+      // Eliminar castigo activo
+      db.run(`DELETE FROM castigos WHERE nino_id = ?`, [id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+      });
+    }
+  );
 });
 
 // Endpoint para obtener todos los castigos activos
@@ -418,6 +450,16 @@ app.get('/api/castigos', (req, res) => {
       rows.forEach(row => { castigos[row.nino_id] = row.hasta; });
       res.json(castigos);
     });
+  });
+});
+
+// Endpoint para obtener el histórico de castigos por niño (cuenta todos, aunque se revoquen)
+app.get('/api/castigos-historico', (req, res) => {
+  db.all('SELECT nino_id, COUNT(*) as veces FROM castigos_hist GROUP BY nino_id', [], (err, rows) => {
+    if (err) return res.json({});
+    const result = {};
+    rows.forEach(r => result[r.nino_id] = r.veces);
+    res.json(result);
   });
 });
 
