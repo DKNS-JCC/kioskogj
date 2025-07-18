@@ -531,7 +531,12 @@
               <span class="group-badge">Grupo ${transaccion.grupo || 'N/A'}</span>
             </div>
             <div class="transaction-amount">
-              <span class="amount">${transaccion.total.toFixed(2)}€</span>
+              <div class="amount-actions">
+                <span class="amount">${transaccion.total.toFixed(2)}€</span>
+                <button class="btn-refund" onclick="reembolsarTransaccion(${transaccion.id}, '${transaccion.nino_nombre}', ${transaccion.total})" title="Reembolsar transacción">
+                  ↩️
+                </button>
+              </div>
               <span class="datetime">${fechaFormateada} ${horaFormateada}</span>
             </div>
           </div>
@@ -543,12 +548,87 @@
       });
     }
 
-    // Actualizar paginación
-    function actualizarPaginacion() {
-      const totalPaginas = Math.ceil(transaccionesFiltradas.length / transaccionesPorPagina);
-      document.getElementById('page-info').textContent = `Página ${paginaActual} de ${totalPaginas}`;
-      document.getElementById('prev-page').disabled = paginaActual <= 1;
-      document.getElementById('next-page').disabled = paginaActual >= totalPaginas;
+    // Nueva función para reembolsar transacciones
+    function reembolsarTransaccion(id, ninoNombre, total) {
+      const modal = document.createElement('div');
+      modal.className = 'refund-modal';
+      modal.innerHTML = `
+        <div class="refund-modal-content">
+          <div class="refund-icon">↩️</div>
+          <h3>Confirmar reembolso</h3>
+          <p>¿Estás seguro de que deseas reembolsar esta transacción?</p>
+          <div class="refund-details">
+            <p><strong>Niño:</strong> ${ninoNombre}</p>
+            <p><strong>Importe:</strong> €${total.toFixed(2)}</p>
+          </div>
+          <p class="warning-text">Esta acción eliminará la transacción y devolverá el dinero al niño.</p>
+          <div class="refund-actions">
+            <button class="btn-confirm-refund" onclick="confirmarReembolso(${id}, this)">
+              <i>↩️</i> Sí, reembolsar
+            </button>
+            <button class="btn-cancel-refund" onclick="cerrarModalReembolso(this)">
+              <i>❌</i> Cancelar
+            </button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    function confirmarReembolso(id, button) {
+      // Show loading state
+      button.innerHTML = '<i>⏳</i> Procesando...';
+      button.disabled = true;
+      
+      fetch(`/api/transacciones/${id}`, { method: 'DELETE' })
+        .then(res => res.json())
+        .then(resp => {
+          if (resp.success) {
+            cerrarModalReembolso(button);
+            // Recargar transacciones aplicando filtros actuales
+            document.getElementById('aplicar-filtros').click();
+            cargarEstadisticas(); // Actualizar estadísticas
+            mostrarNotificacion(
+              `Reembolso exitoso: €${resp.transaccion.total.toFixed(2)} devueltos a ${resp.transaccion.nino_nombre}`, 
+              'success'
+            );
+          } else {
+            mostrarNotificacion('Error: ' + (resp.error || 'No se pudo procesar el reembolso'), 'error');
+            cerrarModalReembolso(button);
+          }
+        })
+        .catch(err => {
+          mostrarNotificacion('Error de conexión con el servidor', 'error');
+          cerrarModalReembolso(button);
+        });
+    }
+
+    function cerrarModalReembolso(element) {
+      const modal = element.closest('.refund-modal');
+      if (modal) {
+        modal.remove();
+      }
+    }
+
+    function mostrarNotificacion(mensaje, tipo = 'info') {
+      const notification = document.createElement('div');
+      notification.className = `notification notification-${tipo}`;
+      notification.innerHTML = `
+        <div class="notification-content">
+          <span class="notification-icon">${tipo === 'success' ? '✅' : tipo === 'error' ? '❌' : 'ℹ️'}</span>
+          <span class="notification-message">${mensaje}</span>
+        </div>
+      `;
+      
+      document.body.appendChild(notification);
+      
+      // Auto remove after 4 seconds
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.style.opacity = '0';
+          setTimeout(() => notification.remove(), 300);
+        }
+      }, 4000);
     }
 
     // Event listeners
@@ -788,5 +868,181 @@
     // Llamar a la función para cargar estadísticas de tokens
     cargarEstadisticasTokens();
   </script>
+
+  <style>
+    /* ...existing styles... */
+
+    .amount-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-refund {
+      background: linear-gradient(45deg, #f59e0b, #d97706);
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9em;
+      transition: all 0.2s ease;
+      min-width: 35px;
+    }
+
+    .btn-refund:hover {
+      background: linear-gradient(45deg, #d97706, #b45309);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(217, 119, 6, 0.3);
+    }
+
+    .refund-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .refund-modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      max-width: 450px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      animation: slideUp 0.3s ease;
+    }
+
+    .refund-icon {
+      font-size: 3em;
+      margin-bottom: 15px;
+      color: #f59e0b;
+    }
+
+    .refund-details {
+      background: #f8fafc;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+      text-align: left;
+    }
+
+    .refund-details p {
+      margin: 5px 0;
+      color: #475569;
+    }
+
+    .warning-text {
+      color: #dc2626;
+      font-weight: 500;
+      font-size: 0.9em;
+      margin: 15px 0;
+    }
+
+    .refund-actions {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      margin-top: 25px;
+    }
+
+    .btn-confirm-refund {
+      background: linear-gradient(45deg, #f59e0b, #d97706);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .btn-confirm-refund:hover:not(:disabled) {
+      background: linear-gradient(45deg, #d97706, #b45309);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(217, 119, 6, 0.3);
+    }
+
+    .btn-confirm-refund:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    .btn-cancel-refund {
+      background: #6b7280;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .btn-cancel-refund:hover {
+      background: #4b5563;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(107, 114, 128, 0.3);
+    }
+
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: white;
+      border-radius: 8px;
+      padding: 15px 20px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+      z-index: 1001;
+      animation: slideInRight 0.3s ease;
+      max-width: 400px;
+    }
+
+    .notification-success {
+      border-left: 4px solid #10b981;
+    }
+
+    .notification-error {
+      border-left: 4px solid #ef4444;
+    }
+
+    .notification-content {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .notification-icon {
+      font-size: 1.2em;
+    }
+
+    .notification-message {
+      color: #374151;
+      font-weight: 500;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    @keyframes slideInRight {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+  </style>
 </body>
 </html>

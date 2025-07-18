@@ -332,6 +332,48 @@ app.get('/api/transacciones', (req, res) => {
   });
 });
 
+// NUEVO: Endpoint para reembolsar una transacción
+app.delete('/api/transacciones/:id', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  
+  if (isNaN(id)) {
+    return res.status(400).json({ error: 'ID inválido' });
+  }
+  
+  // Primero obtener la transacción para verificar que existe y obtener los datos
+  db.get('SELECT * FROM transacciones WHERE id = ?', [id], (err, transaccion) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!transaccion) return res.status(404).json({ error: 'Transacción no encontrada' });
+    
+    // Verificar que el niño aún existe
+    db.get('SELECT dinero FROM ninos WHERE id = ?', [transaccion.nino_id], (err2, nino) => {
+      if (err2) return res.status(500).json({ error: err2.message });
+      if (!nino) return res.status(404).json({ error: 'Niño no encontrado' });
+      
+      // Devolver el dinero al niño
+      const nuevoSaldo = parseFloat((nino.dinero + transaccion.total).toFixed(2));
+      
+      db.run('UPDATE ninos SET dinero = ? WHERE id = ?', [nuevoSaldo, transaccion.nino_id], function(err3) {
+        if (err3) return res.status(500).json({ error: err3.message });
+        
+        // Eliminar la transacción
+        db.run('DELETE FROM transacciones WHERE id = ?', [id], function(err4) {
+          if (err4) return res.status(500).json({ error: err4.message });
+          
+          res.json({ 
+            success: true, 
+            nuevoSaldo,
+            transaccion: {
+              nino_nombre: transaccion.nino_nombre,
+              total: transaccion.total
+            }
+          });
+        });
+      });
+    });
+  });
+});
+
 // Endpoint para estadísticas de transacciones - adaptado para campamento corto
 app.get('/api/estadisticas', (req, res) => {
   const queries = {
