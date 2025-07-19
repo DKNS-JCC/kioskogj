@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Kiosko Campamento</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -251,6 +252,101 @@
       border: 3px solid #e0c238;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
+
+    /* Mejoras para móvil */
+    @media (max-width: 768px) {
+      .producto-card-clickable {
+        padding: 16px !important;
+        margin-bottom: 12px !important;
+        min-height: 80px !important;
+        touch-action: manipulation !important;
+      }
+      .producto-info {
+        margin-bottom: 12px !important;
+      }
+      .producto-nombre {
+        font-size: 1.1rem !important;
+        line-height: 1.3 !important;
+      }
+      .price {
+        font-size: 1.2rem !important;
+        font-weight: 700 !important;
+      }
+      .cantidad-controls {
+        gap: 12px !important;
+      }
+      .btn-cantidad {
+        width: 48px !important;
+        height: 48px !important;
+        font-size: 1.5rem !important;
+        font-weight: 700 !important;
+        border-radius: 12px !important;
+        touch-action: manipulation !important;
+        -webkit-tap-highlight-color: transparent !important;
+        user-select: none !important;
+      }
+      .cantidad-input {
+        width: 60px !important;
+        height: 48px !important;
+        font-size: 1.3rem !important;
+        font-weight: 600 !important;
+        text-align: center !important;
+        border: 3px solid #e2e8f0 !important;
+        border-radius: 8px !important;
+        touch-action: manipulation !important;
+        -webkit-appearance: none !important;
+        -moz-appearance: textfield !important;
+        background: #f9fafb !important;
+      }
+      .cantidad-input::-webkit-outer-spin-button,
+      .cantidad-input::-webkit-inner-spin-button {
+        -webkit-appearance: none !important;
+        margin: 0 !important;
+      }
+      .producto-card-clickable.clicked {
+        transform: scale(0.98) !important;
+        box-shadow: 0 2px 8px rgba(67, 56, 202, 0.3) !important;
+      }
+      .btn-cantidad:active {
+        transform: scale(0.95) !important;
+        background: linear-gradient(45deg, #3730a3, #581c87) !important;
+      }
+    }
+    .producto-card-clickable {
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .producto-card-clickable::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(45deg, rgba(67, 56, 202, 0.05), rgba(107, 33, 168, 0.05));
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
+    }
+    .producto-card-clickable:active::before,
+    .producto-card-clickable.clicked::before {
+      opacity: 1;
+    }
+    /* Indicador visual de toque */
+    @media (max-width: 768px) {
+      .producto-card-clickable::after {
+        content: '👆 Toca para añadir';
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: rgba(67, 56, 202, 0.9);
+        color: white;
+        font-size: 0.75rem;
+        padding: 4px 8px;
+        border-radius: 4px;
+        opacity: 0.8;
+        pointer-events: none;
+      }
+    }
   </style>
   <script>
     let productosDB = [];
@@ -458,7 +554,7 @@
               <div class="cantidad-controls">
                 <button type="button" class="btn-cantidad" id="btn-minus-${producto.id}">-</button>
                 <input type="number" class="cantidad-input" id="cantidad-${producto.id}" 
-                       value="0" min="0" max="20" data-precio="${producto.precio}">
+                       value="0" min="0" max="20" data-precio="${producto.precio}" readonly>
                 <button type="button" class="btn-cantidad" id="btn-plus-${producto.id}">+</button>
               </div>
             `;
@@ -469,11 +565,13 @@
             document.getElementById(`btn-minus-${producto.id}`).onclick = (e) => {
               e.stopPropagation();
               cambiarCantidad(producto.id, -1);
+              if (navigator.vibrate) navigator.vibrate(30);
             };
             
             document.getElementById(`btn-plus-${producto.id}`).onclick = (e) => {
               e.stopPropagation();
               cambiarCantidad(producto.id, 1);
+              if (navigator.vibrate) navigator.vibrate(30);
             };
             
             document.getElementById(`cantidad-${producto.id}`).onchange = (e) => {
@@ -606,7 +704,18 @@
     window.cambiarCantidad = function(productoId, delta) {
       const input = document.getElementById(`cantidad-${productoId}`);
       const nuevaCantidad = Math.max(0, Math.min(20, parseInt(input.value) + delta));
+      const cantidadAnterior = parseInt(input.value);
       input.value = nuevaCantidad;
+      if (nuevaCantidad !== cantidadAnterior) {
+        input.style.background = delta > 0 ? '#dcfce7' : '#fef2f2';
+        input.style.color = delta > 0 ? '#16a34a' : '#dc2626';
+        input.style.transform = 'scale(1.1)';
+        setTimeout(() => {
+          input.style.background = '';
+          input.style.color = '';
+          input.style.transform = '';
+        }, 300);
+      }
       actualizarTotal();
     };
 
