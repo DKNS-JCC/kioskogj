@@ -81,6 +81,9 @@
             <input type="number" id="nino-grupo" placeholder="Grupo (número)" step="1" min="1" required>
             <input type="number" id="nino-dinero" placeholder="Dinero inicial (€)" step="0.1" required>
           </div>
+          <div class="form-row">
+            <input type="number" id="nino-tokens" placeholder="Tokens iniciales" min="0" value="0">
+          </div>
           <div class="form-row form-actions">
             <button type="button" style="width: 33%;" class="btn-cancel" onclick="toggleForm('form-nino')">Cancelar</button>
             <button type="submit" style="width: 100%;" class="btn-add">Guardar niño</button>
@@ -201,6 +204,7 @@
                 <h3>${nino.nombre} ${nino.apellidos}</h3>
                 <p><span class="badge">Grupo ${nino.grupo}</span></p>
                 <p class="saldo">${nino.dinero.toFixed(2)}€</p>
+                <p class="tokens">🪙 ${nino.tokens || 0} tokens</p>
               </div>
               <div class="nino-actions">
                 <button class="btn-edit" onclick="toggleEdit(${nino.id}, 'nino')" title="Editar">
@@ -228,6 +232,10 @@
                 <div class="form-group">
                   <label>Dinero:</label>
                   <input type="number" id="edit-dinero-${nino.id}" value="${nino.dinero}" step="0.1" min="0">
+                </div>
+                <div class="form-group">
+                  <label>Tokens:</label>
+                  <input type="number" id="edit-tokens-${nino.id}" value="${nino.tokens || 0}" min="0">
                 </div>
                 <div class="edit-actions">
                   <button class="btn-save" onclick="guardarCambios(${nino.id}, 'nino')">
@@ -298,6 +306,7 @@
       const apellidos = document.getElementById('nino-apellidos').value.trim();
       const grupo = parseInt(document.getElementById('nino-grupo').value, 10);
       const dinero = parseFloat(document.getElementById('nino-dinero').value);
+      const tokens = parseInt(document.getElementById('nino-tokens').value) || 0;
 
       // Validar campos antes de enviar
       if (!nombre || !apellidos || isNaN(grupo) || grupo <= 0 || isNaN(dinero) || dinero < 0) {
@@ -309,7 +318,7 @@
       fetch('/api/ninos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre, apellidos, grupo, dinero })
+        body: JSON.stringify({ nombre, apellidos, grupo, dinero, tokens })
       })
       .then(res => res.json())
       .then(resp => {
@@ -626,13 +635,14 @@
         const apellidos = document.getElementById(`edit-apellidos-${id}`).value.trim();
         const grupo = parseInt(document.getElementById(`edit-grupo-${id}`).value);
         const dinero = parseFloat(document.getElementById(`edit-dinero-${id}`).value);
+        const tokens = parseInt(document.getElementById(`edit-tokens-${id}`).value) || 0;
         
-        if (!nombre || !apellidos || isNaN(grupo) || grupo <= 0 || isNaN(dinero) || dinero < 0) {
+        if (!nombre || !apellidos || isNaN(grupo) || grupo <= 0 || isNaN(dinero) || dinero < 0 || tokens < 0) {
           mostrarNotificacion('Por favor, completa todos los campos correctamente.', 'error');
           return;
         }
         
-        data = { nombre, apellidos, grupo, dinero };
+        data = { nombre, apellidos, grupo, dinero, tokens };
         url = `/api/ninos/${id}`;
       } else {
         const nombre = document.getElementById(`edit-producto-nombre-${id}`).value.trim();

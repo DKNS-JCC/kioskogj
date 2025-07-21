@@ -94,13 +94,16 @@ db.get("SELECT COUNT(*) as count FROM pragma_table_info('ninos') WHERE name='tok
 
 // Endpoint para añadir niño
 app.post('/api/ninos', (req, res) => {
-  const { nombre, apellidos, grupo, dinero } = req.body;
+  const { nombre, apellidos, grupo, dinero, tokens } = req.body;
   if (!nombre || !apellidos || typeof grupo !== 'number' || grupo <= 0 || typeof dinero !== 'number' || dinero < 0) {
     return res.status(400).json({ error: 'Datos inválidos' });
   }
+  
+  const tokenValue = typeof tokens === 'number' && tokens >= 0 ? tokens : 0;
+  
   db.run(
-    'INSERT INTO ninos (nombre, apellidos, grupo, dinero) VALUES (?, ?, ?, ?)',
-    [nombre, apellidos, grupo, dinero],
+    'INSERT INTO ninos (nombre, apellidos, grupo, dinero, tokens) VALUES (?, ?, ?, ?, ?)',
+    [nombre, apellidos, grupo, dinero, tokenValue],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
       res.json({ success: true, id: this.lastID });
@@ -126,15 +129,17 @@ app.get('/api/ninos', (req, res) => {
 // Endpoint para actualizar niño
 app.put('/api/ninos/:id', (req, res) => {
   const id = parseInt(req.params.id, 10);
-  const { nombre, apellidos, grupo, dinero } = req.body;
+  const { nombre, apellidos, grupo, dinero, tokens } = req.body;
   
   if (isNaN(id) || !nombre || !apellidos || typeof grupo !== 'number' || grupo <= 0 || typeof dinero !== 'number' || dinero < 0) {
     return res.status(400).json({ error: 'Datos inválidos' });
   }
   
+  const tokenValue = typeof tokens === 'number' && tokens >= 0 ? tokens : 0;
+  
   db.run(
-    'UPDATE ninos SET nombre = ?, apellidos = ?, grupo = ?, dinero = ? WHERE id = ?',
-    [nombre, apellidos, grupo, dinero, id],
+    'UPDATE ninos SET nombre = ?, apellidos = ?, grupo = ?, dinero = ?, tokens = ? WHERE id = ?',
+    [nombre, apellidos, grupo, dinero, tokenValue, id],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Niño no encontrado' });
@@ -447,26 +452,182 @@ app.get('/api/ninos/:id/info', (req, res) => {
   });
 });
 
-// Endpoint para actualizar tokens
+// Endpoint para obtener el estado del bonus de tokens
+app.get('/api/tokens/bonus', (req, res) => {
+  db.get('SELECT valor FROM configuracion WHERE clave = ?', ['tokenBonus'], (err, row) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    
+    if (!row) {
+      // No hay bonus activo
+      res.json({
+        activo: false,
+        multiplicador: 1,
+        porcentaje: 0,
+        tiempoRestante: 0,
+        proximoDisponible: 0,
+        puedeActivar: true
+      });
+      return;
+    }
+    
+    const bonusData = JSON.parse(row.valor);
+    const now = Date.now();
+    
+    // Verificar si el bonus sigue activo
+    if (bonusData.finalizaEn > now) {
+      const tiempoRestante = bonusData.finalizaEn - now;
+      const minutosRestantes = Math.ceil(tiempoRestante / 60000);
+      
+      res.json({
+        activo: true,
+        multiplicador: 1.5,
+        porcentaje: 50,
+        tiempoRestante: tiempoRestante,
+        minutosRestantes: minutosRestantes,
+        proximoDisponible: bonusData.proximoDisponible,
+        puedeActivar: false
+      });
+    } else {
+      // Bonus ha expirado, verificar cooldown
+      const puedeActivar = now >= bonusData.proximoDisponible;
+      const tiempoHastaCooldown = puedeActivar ? 0 : bonusData.proximoDisponible - now;
+      const horasHastaCooldown = Math.ceil(tiempoHastaCooldown / 3600000);
+      
+      res.json({
+        activo: false,
+        multiplicador: 1,
+        porcentaje: 0,
+        tiempoRestante: 0,
+        proximoDisponible: bonusData.proximoDisponible,
+        puedeActivar: puedeActivar,
+        horasHastaCooldown: horasHastaCooldown
+      });
+    }
+  });
+});
+
+// Endpoint para activar el bonus de tokens
+app.post('/api/tokens/bonus/activar', (req, res) => {
+  const now = Date.now();
+  
+  // Verificar estado actual del bonus
+  db.get('SELECT valor FROM configuracion WHERE clave = ?', ['tokenBonus'], (err, row) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    
+    if (row) {
+      const bonusData = JSON.parse(row.valor);
+      
+      // Verificar si ya está activo
+      if (bonusData.finalizaEn > now) {
+        res.status(400).json({ error: 'El bonus ya está activo' });
+        return;
+      }
+      
+      // Verificar cooldown
+      if (now < bonusData.proximoDisponible) {
+        const tiempoHastaCooldown = bonusData.proximoDisponible - now;
+        const horasRestantes = Math.ceil(tiempoHastaCooldown / 3600000);
+        res.status(400).json({ error: `Bonus en cooldown. Disponible en ${horasRestantes} horas.` });
+        return;
+      }
+    }
+    
+    // Activar bonus: 30 minutos de duración, 8 horas de cooldown
+    const finalizaEn = now + 30 * 60 * 1000; // 30 minutos
+    const proximoDisponible = now + 8 * 60 * 60 * 1000; // 8 horas desde ahora
+    
+    const bonusData = {
+      activadoEn: now,
+      finalizaEn: finalizaEn,
+      proximoDisponible: proximoDisponible
+    };
+    
+    db.run(`INSERT OR REPLACE INTO configuracion (clave, valor) VALUES (?, ?)`, 
+      ['tokenBonus', JSON.stringify(bonusData)], function(err) {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      res.json({ 
+        success: true, 
+        finalizaEn: finalizaEn,
+        proximoDisponible: proximoDisponible
+      });
+    });
+  });
+});
+
+// Endpoint para actualizar tokens (modificado para usar el sistema de bonus manual)
 app.post('/api/ninos/:id/tokens', (req, res) => {
   const id = parseInt(req.params.id, 10);
-  const cantidad = parseInt(req.body.cantidad, 10);
+  let cantidad = parseInt(req.body.cantidad, 10);
   
-  if (isNaN(id) || isNaN(cantidad) || cantidad < 0) {
+  if (isNaN(id) || isNaN(cantidad)) {
     return res.status(400).json({ error: 'Datos inválidos' });
   }
   
-  db.get('SELECT COALESCE(tokens, 0) as tokens FROM ninos WHERE id = ?', [id], (err, row) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (!row) return res.status(404).json({ error: 'Niño no encontrado' });
-    
-    const nuevosTokens = row.tokens + cantidad;
-    
-    db.run('UPDATE ninos SET tokens = ? WHERE id = ?', [nuevosTokens, id], function(err2) {
-      if (err2) return res.status(500).json({ error: err2.message });
-      res.json({ success: true, nuevosTokens });
+  // Verificar bonus activo solo si se están añadiendo tokens
+  let multiplicador = 1;
+  let bonusAplicado = false;
+  
+  if (cantidad > 0) {
+    // Verificar si hay bonus activo
+    db.get('SELECT valor FROM configuracion WHERE clave = ?', ['tokenBonus'], (err, row) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      
+      if (row) {
+        const bonusData = JSON.parse(row.valor);
+        const now = Date.now();
+        
+        if (bonusData.finalizaEn > now) {
+          multiplicador = 1.5; // +50%
+          bonusAplicado = true;
+        }
+      }
+      
+      // Aplicar multiplicador solo a tokens positivos
+      const cantidadOriginal = cantidad;
+      cantidad = Math.floor(cantidad * multiplicador);
+      
+      procesarTokens();
     });
-  });
+  } else {
+    procesarTokens();
+  }
+  
+  function procesarTokens() {
+    db.get('SELECT COALESCE(tokens, 0) as tokens FROM ninos WHERE id = ?', [id], (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!row) return res.status(404).json({ error: 'Niño no encontrado' });
+      
+      const nuevosTokens = row.tokens + cantidad;
+      
+      // Validar que no queden tokens negativos
+      if (nuevosTokens < 0) {
+        return res.status(400).json({ error: `No se pueden quitar ${Math.abs(cantidad)} tokens. El niño solo tiene ${row.tokens} tokens.` });
+      }
+      
+      db.run('UPDATE ninos SET tokens = ? WHERE id = ?', [nuevosTokens, id], function(err2) {
+        if (err2) return res.status(500).json({ error: err2.message });
+        res.json({ 
+          success: true, 
+          nuevosTokens,
+          multiplicadorAplicado: multiplicador,
+          bonusAplicado: bonusAplicado,
+          tokenesOriginales: req.body.cantidad,
+          tokenesFinales: cantidad
+        });
+      });
+    });
+  }
 });
 
 // Endpoint para castigar a un niño por 12 horas

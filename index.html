@@ -40,14 +40,30 @@
     <!-- Nueva sección para tokens -->
     <div class="token-section">
       <h2>🪙 Tokens</h2>
+      
+      <!-- Información del bonus y botón de activación -->
+      <div id="token-bonus" class="token-bonus-info">
+        <div class="bonus-status-row">
+          <div class="bonus-info">
+            <span class="bonus-label">Estado del Bonus:</span>
+            <span id="bonus-estado" class="bonus-estado">Cargando...</span>
+          </div>
+          <button id="btn-activar-bonus" class="btn-activar-bonus" style="display: none;" onclick="activarBonus()">
+            🚀 Activar Bonus +50%
+          </button>
+        </div>
+      </div>
+      
       <div class="token-controls" style="display: flex; justify-content: center; align-items: center; gap: 10px; padding: 15px;">
-        <label for="tokens-cantidad" style="font-weight: 600; color: #475569;">Cantidad a añadir:</label>
+        <label for="tokens-cantidad" style="font-weight: 600; color: #475569;">Cantidad a añadir/quitar:</label>
         <div style="display: flex; align-items: center; gap: 8px;">
           <button type="button" class="btn-cantidad" onclick="cambiarTokens(-1)">-</button>
-          <input type="number" id="tokens-cantidad" value="0" min="0" max="100" style="width: 60px; text-align: center; border: 2px solid #e2e8f0; border-radius: 4px; padding: 8px 4px; font-size: 1rem; font-weight: 600;">
+          <input type="number" id="tokens-cantidad" value="0" min="-100" max="100" style="width: 60px; text-align: center; border: 2px solid #e2e8f0; border-radius: 4px; padding: 8px 4px; font-size: 1rem; font-weight: 600;">
           <button type="button" class="btn-cantidad" onclick="cambiarTokens(1)">+</button>
         </div>
       </div>
+      
+      <div id="tokens-preview" class="tokens-preview" style="text-align: center; margin-top: 10px; margin-bottom: 10px;"></div>
     </div>
     <br>
 
@@ -250,6 +266,132 @@
       border-radius: 8px;
       border: 3px solid #e0c238;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .token-bonus-info {
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      text-align: center;
+      border: 2px solid #d4af37;
+    }
+    
+    .bonus-status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+    
+    .bonus-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      min-width: 200px;
+    }
+    
+    .bonus-display {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+    
+    .bonus-label {
+      font-weight: 600;
+      color: #8b4513;
+      font-size: 1.1em;
+    }
+    
+    .bonus-estado {
+      font-weight: 700;
+      font-size: 1.1em;
+      padding: 6px 15px;
+      border-radius: 8px;
+      color: white;
+      min-width: 120px;
+    }
+    
+    .bonus-estado.activo {
+      background: linear-gradient(45deg, #10b981, #059669);
+      animation: pulse-bonus 2s infinite;
+    }
+    
+    .bonus-estado.inactivo {
+      background: linear-gradient(45deg, #6b7280, #4b5563);
+    }
+    
+    .bonus-estado.cooldown {
+      background: linear-gradient(45deg, #ef4444, #dc2626);
+    }
+    
+    .btn-activar-bonus {
+      background: linear-gradient(45deg, #f59e0b, #d97706);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 1em;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 3px 10px rgba(245, 158, 11, 0.3);
+    }
+    
+    .btn-activar-bonus:hover {
+      background: linear-gradient(45deg, #d97706, #b45309);
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(245, 158, 11, 0.4);
+    }
+    
+    .btn-activar-bonus:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    @keyframes pulse-bonus {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    
+    .tokens-preview {
+      font-size: 0.9em;
+      color: #6b7280;
+      font-weight: 600;
+      min-height: 20px;
+    }
+    
+    .tokens-preview.activo {
+      color: #059669;
+    }
+    
+    .tokens-preview.bonus {
+      color: #f59e0b;
+      font-weight: 700;
+    }
+    
+    @media (max-width: 600px) {
+      .bonus-display {
+        flex-direction: column;
+        gap: 10px;
+      }
+      
+      .bonus-status-row {
+        flex-direction: column;
+        gap: 12px;
+        text-align: center;
+      }
+      
+      .bonus-info {
+        justify-content: center;
+        min-width: auto;
+      }
     }
   </style>
   <script>
@@ -610,35 +752,144 @@
       actualizarTotal();
     };
 
-    // Función para cambiar tokens con botones
-    window.cambiarTokens = function(delta) {
-      const input = document.getElementById('tokens-cantidad');
-      const nuevaCantidad = Math.max(0, Math.min(100, parseInt(input.value || 0) + delta));
-      input.value = nuevaCantidad;
-    };
-
-    // Actualizar total cuando cambia cualquier cantidad
-    function actualizarTotal() {
-      let total = 0;
-      document.querySelectorAll('.cantidad-input').forEach(input => {
-        const cantidad = parseInt(input.value) || 0;
-        const precio = parseFloat(input.getAttribute('data-precio'));
-        total += cantidad * precio;
+    // Función para actualizar el multiplicador de tokens
+    function actualizarMultiplicadorTokens() {
+      fetch('/api/tokens/multiplicador')
+        .then(res => res.json())
+        .then(data => {
+          multiplicadorActual = data.multiplicador;
+          const valorElement = document.getElementById('multiplicador-valor');
+          const tiempoElement = document.getElementById('multiplicador-tiempo');
+          
+          // Actualizar valor
+          const porcentaje = data.porcentaje;
+          valorElement.textContent = `${porcentaje >= 0 ? '+' : ''}${porcentaje}%`;
+          
+          // Actualizar clase CSS según el valor
+          valorElement.className = 'multiplicador-valor';
+          if (porcentaje > 0) {
+            valorElement.classList.add('positivo');
+          } else if (porcentaje < 0) {
+            valorElement.classList.add('negativo');
+          } else {
+            valorElement.classList.add('neutro');
+          }
+          
+          // Actualizar tiempo restante
+          tiempoElement.textContent = `Cambia en ${data.minutosHastaCambio} min`;
+          
+          // Actualizar preview si hay tokens seleccionados
+          actualizarPreviewTokens();
+        })
+        .catch(() => {
+          document.getElementById('multiplicador-valor').textContent = 'Error';
+          document.getElementById('multiplicador-tiempo').textContent = '';
+        });
+    }
+    
+    // Función para actualizar el estado del bonus
+    function actualizarEstadoBonus() {
+      fetch('/api/tokens/bonus')
+        .then(res => res.json())
+        .then(data => {
+          const estadoElement = document.getElementById('bonus-estado');
+          const btnActivar = document.getElementById('btn-activar-bonus');
+          
+          bonusActivo = data.activo;
+          
+          if (data.activo) {
+            estadoElement.textContent = `ACTIVO +50% (${data.minutosRestantes} min)`;
+            estadoElement.className = 'bonus-estado activo';
+            btnActivar.style.display = 'none';
+          } else if (!data.puedeActivar) {
+            estadoElement.textContent = `Cooldown (${data.horasHastaCooldown}h)`;
+            estadoElement.className = 'bonus-estado cooldown';
+            btnActivar.style.display = 'none';
+          } else {
+            estadoElement.textContent = 'Disponible';
+            estadoElement.className = 'bonus-estado inactivo';
+            btnActivar.style.display = 'inline-block';
+          }
+          
+          // Actualizar preview si hay tokens seleccionados
+          actualizarPreviewTokens();
+        })
+        .catch(() => {
+          document.getElementById('bonus-estado').textContent = 'Error';
+          document.getElementById('bonus-estado').className = 'bonus-estado';
+        });
+    }
+    
+    // Función para activar el bonus
+    function activarBonus() {
+      const btn = document.getElementById('btn-activar-bonus');
+      btn.disabled = true;
+      btn.textContent = 'Activando...';
+      
+      fetch('/api/tokens/bonus/activar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      .then(res => res.json())
+      .then(result => {
+        if (result.success) {
+          actualizarEstadoBonus();
+          mostrarMensaje('¡Bonus activado! +50% de tokens durante 30 minutos.', 'green', false);
+        } else {
+          mostrarMensaje(`Error: ${result.error || 'No se pudo activar el bonus'}`, 'red', false);
+          btn.disabled = false;
+          btn.textContent = '🚀 Activar Bonus +50%';
+        }
+      })
+      .catch(() => {
+        mostrarMensaje('Error de conexión con el servidor.', 'red', false);
+        btn.disabled = false;
+        btn.textContent = '🚀 Activar Bonus +50%';
       });
+    }
+    
+    // Función para actualizar el preview de tokens
+    function actualizarPreviewTokens() {
+      const tokensInput = document.getElementById('tokens-cantidad');
+      const cantidad = parseInt(tokensInput.value || 0);
+      const previewElement = document.getElementById('tokens-preview');
       
-      const totalElement = document.getElementById('total');
-      const totalSection = document.querySelector('.total-section');
-      
-      totalElement.textContent = total.toFixed(2);
-      
-      // Aplicar estilos según si supera el límite
-      if (total > LIMITE_DIARIO) {
-        totalSection.classList.add('limite-superado');
+      if (cantidad > 0) {
+        const multiplicador = bonusActivo ? 1.5 : 1;
+        const tokensFinales = Math.floor(cantidad * multiplicador);
+        
+        if (bonusActivo) {
+          previewElement.textContent = `→ Recibirás ${tokensFinales} tokens (¡BONUS +50%!)`;
+          previewElement.className = 'tokens-preview bonus';
+        } else {
+          previewElement.textContent = `→ Recibirás ${tokensFinales} tokens`;
+          previewElement.className = 'tokens-preview activo';
+        }
+      } else if (cantidad < 0) {
+        previewElement.textContent = `→ Se quitarán ${Math.abs(cantidad)} tokens`;
+        previewElement.className = 'tokens-preview';
       } else {
-        totalSection.classList.remove('limite-superado');
+        previewElement.textContent = '';
+        previewElement.className = 'tokens-preview';
       }
     }
-
+    
+    // Función para cambiar tokens con botones (actualizada)
+    window.cambiarTokens = function(delta) {
+      const input = document.getElementById('tokens-cantidad');
+      const nuevaCantidad = Math.max(-100, Math.min(100, parseInt(input.value || 0) + delta));
+      input.value = nuevaCantidad;
+      actualizarPreviewTokens();
+    };
+    
+    // Actualizar preview cuando cambia el input
+    document.addEventListener('DOMContentLoaded', function() {
+      const tokensInput = document.getElementById('tokens-cantidad');
+      if (tokensInput) {
+        tokensInput.addEventListener('input', actualizarPreviewTokens);
+      }
+    });
+    
     // Confirmar compra
     window.confirmarCompra = function() {
       const ninoId = parseInt(document.getElementById('nino').value, 10);
@@ -665,13 +916,13 @@
         }
       });
       
-      // Obtener tokens a añadir
+      // Obtener tokens a añadir/quitar
       const tokensInput = document.getElementById('tokens-cantidad');
       const tokensAñadir = parseInt(tokensInput.value || 0);
       
       // Verificar si hay productos o tokens para procesar
       if (total === 0 && tokensAñadir === 0) {
-        mostrarMensaje('Selecciona al menos un producto o añade tokens.', 'red', false);
+        mostrarMensaje('Selecciona al menos un producto o añade/quita tokens.', 'red', false);
         return;
       }
 
@@ -743,8 +994,8 @@
         );
       }
       
-      // Procesar tokens si hay tokens para añadir
-      if (tokensAñadir > 0) {
+      // Procesar tokens si hay tokens para añadir/quitar
+      if (tokensAñadir !== 0) {
         operaciones.push(
           fetch(`/api/ninos/${ninoId}/tokens`, {
             method: 'POST',
@@ -760,7 +1011,7 @@
           const compraResult = total > 0 ? resultados[0] : null;
           
           // Resultado de tokens (si hubo)
-          const tokensResult = tokensAñadir > 0 ? 
+          const tokensResult = tokensAñadir !== 0 ? 
             (total > 0 ? resultados[1] : resultados[0]) : null;
           
           // Verificar si alguna operación falló
@@ -791,9 +1042,15 @@
             mensajeExito += `Pedido confirmado.<br><strong>Productos:</strong><br>${resumenProductos}<br><strong>Total gastado:</strong> ${total.toFixed(2)}€<br><strong>Saldo restante:</strong> ${compraResult.nuevoSaldo.toFixed(2)}€<br>`;
           }
           
-          if (tokensAñadir > 0) {
+          if (tokensAñadir !== 0) {
             mensajeExito += `${total > 0 ? '<br>' : ''}`;
-            mensajeExito += `<strong>Tokens añadidos:</strong> ${tokensAñadir}<br><strong>Tokens totales:</strong> ${tokensResult.nuevosTokens}`;
+            if (tokensAñadir > 0) {
+              const bonusInfo = tokensResult.bonusAplicado ? 
+                `<br><small style="color: #f59e0b; font-weight: bold;">¡BONUS +50% aplicado! (${tokensResult.tokenesOriginales} → ${tokensResult.tokenesFinales})</small>` : '';
+              mensajeExito += `<strong>Tokens añadidos:</strong> ${tokensResult.tokenesFinales || tokensAñadir}${bonusInfo}<br><strong>Tokens totales:</strong> ${tokensResult.nuevosTokens}`;
+            } else {
+              mensajeExito += `<strong>Tokens quitados:</strong> ${Math.abs(tokensAñadir)}<br><strong>Tokens totales:</strong> ${tokensResult.nuevosTokens}`;
+            }
           }
           
           mostrarMensaje(mensajeExito, 'green', true);
@@ -841,7 +1098,15 @@
     // Inicializar la aplicación
     cargarConfiguracion();
     cargarProductos();
-
+    
+    // Inicializar multiplicador de tokens
+    actualizarMultiplicadorTokens();
+    intervaloMultiplicador = setInterval(actualizarMultiplicadorTokens, 30000); // Actualizar cada 30 segundos
+    
+    // Inicializar sistema de bonus
+    actualizarEstadoBonus();
+    intervaloBonus = setInterval(actualizarEstadoBonus, 15000); // Actualizar cada 15 segundos
+    
     // Easter egg DKNS/Cuadrado: aparece al pulsar "C" en mayúsculas (Shift+C)
     document.addEventListener('keydown', function(e) {
       if (e.key === 'C' && !e.ctrlKey && !e.altKey) {
@@ -859,6 +1124,102 @@
         if (egg) egg.style.display = 'none';
       }
     });
+    
+    function mostrarFormularioNino(nino = null) {
+      const modal = document.createElement('div');
+      modal.id = 'popup-modal';
+      modal.innerHTML = `
+        <div class="popup-content" style="max-width: 400px;">
+          <h3>${nino ? 'Editar' : 'Añadir'} Niño</h3>
+          <form id="form-nino">
+            <div style="margin-bottom: 15px;">
+              <label>Nombre:</label>
+              <input type="text" id="nino-nombre" value="${nino ? nino.nombre : ''}" required>
+            </div>
+            <div style="margin-bottom: 15px;">
+              <label>Apellidos:</label>
+              <input type="text" id="nino-apellidos" value="${nino ? nino.apellidos : ''}" required>
+            </div>
+            <div style="margin-bottom: 15px;">
+              <label>Grupo:</label>
+              <input type="number" id="nino-grupo" value="${nino ? nino.grupo : ''}" min="1" required>
+            </div>
+            <div style="margin-bottom: 15px;">
+              <label>Dinero (€):</label>
+              <input type="number" id="nino-dinero" value="${nino ? nino.dinero : ''}" min="0" step="0.01" required>
+            </div>
+            <div style="margin-bottom: 15px;">
+              <label>Tokens:</label>
+              <input type="number" id="nino-tokens" value="${nino ? (nino.tokens || 0) : 0}" min="0" required>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+              <button type="submit" style="background: #4338ca;">Guardar</button>
+              <button type="button" id="cancelar-nino" style="background: #64748b;">Cancelar</button>
+            </div>
+          </form>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      document.getElementById('cancelar-nino').onclick = () => modal.remove();
+      
+      document.getElementById('form-nino').onsubmit = (e) => {
+        e.preventDefault();
+        
+        const datos = {
+          nombre: document.getElementById('nino-nombre').value,
+          apellidos: document.getElementById('nino-apellidos').value,
+          grupo: parseInt(document.getElementById('nino-grupo').value),
+          dinero: parseFloat(document.getElementById('nino-dinero').value),
+          tokens: parseInt(document.getElementById('nino-tokens').value)
+        };
+        
+        const url = nino ? `/api/ninos/${nino.id}` : '/api/ninos';
+        const method = nino ? 'PUT' : 'POST';
+        
+        fetch(url, {
+          method: method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(datos)
+        })
+        .then(res => res.json())
+        .then(result => {
+          if (result.success) {
+            modal.remove();
+            cargarNinos();
+            mostrarMensaje(nino ? 'Niño actualizado correctamente' : 'Niño añadido correctamente', 'green', false);
+          } else {
+            mostrarMensaje(`Error: ${result.error}`, 'red', false);
+          }
+        })
+        .catch(() => mostrarMensaje('Error de conexión', 'red', false));
+      };
+    }
+    
+    function cargarNinos() {
+      fetch('/api/ninos')
+        .then(res => res.json())
+        .then(ninos => {
+          const tbody = document.getElementById('tabla-ninos-body');
+          tbody.innerHTML = '';
+          
+          ninos.forEach(nino => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${nino.nombre}</td>
+              <td>${nino.apellidos}</td>
+              <td>${nino.grupo}</td>
+              <td>${nino.dinero.toFixed(2)}€</td>
+              <td>${nino.tokens || 0}</td>
+              <td>
+                <button onclick="mostrarFormularioNino(${JSON.stringify(nino).replace(/"/g, '&quot;')})" class="btn-editar">Editar</button>
+                <button onclick="eliminarNino(${nino.id})" class="btn-eliminar">Eliminar</button>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        });
+    }
   </script>
 </body>
 </html>
