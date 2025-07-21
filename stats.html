@@ -756,8 +756,36 @@
           const gruposContainer = document.getElementById('tokens-por-grupo');
           gruposContainer.innerHTML = '';
           
+          // Calcular el tamaño promedio de los grupos
+          const totalGrupos = Object.keys(gruposTokens).length;
+          const totalPersonas = Object.values(gruposTokens).reduce((sum, grupo) => sum + grupo.ninos.length, 0);
+          const promedioPersonasPorGrupo = totalPersonas / totalGrupos;
+          
           Object.keys(gruposTokens).sort((a, b) => a - b).forEach(grupo => {
             const grupoData = gruposTokens[grupo];
+            
+            // Calcular tokens reales (tokens por persona)
+            const totalPersonasGrupo = grupoData.ninos.length;
+            const tokensReales = totalPersonasGrupo > 0 ? (grupoData.total / totalPersonasGrupo) : 0;
+            
+            // Calcular tokens compensados por disparidad de tamaño
+            // Factor de compensación: grupos pequeños reciben bonificación, grupos grandes penalización
+            const factorCompensacion = promedioPersonasPorGrupo / totalPersonasGrupo;
+            const tokensCompensados = tokensReales * factorCompensacion;
+            
+            // Determinar si el grupo es grande, pequeño o promedio
+            let tipoGrupo = '';
+            let colorCompensacion = '';
+            if (totalPersonasGrupo < promedioPersonasPorGrupo * 0.8) {
+              tipoGrupo = 'Grupo pequeño (+bonus)';
+              colorCompensacion = '#059669'; // Verde para bonus
+            } else if (totalPersonasGrupo > promedioPersonasPorGrupo * 1.2) {
+              tipoGrupo = 'Grupo grande (-ajuste)';
+              colorCompensacion = '#dc2626'; // Rojo para penalización
+            } else {
+              tipoGrupo = 'Grupo promedio';
+              colorCompensacion = '#6b7280'; // Gris para neutral
+            }
             
             // Ordenar niños del grupo por tokens (de mayor a menor)
             const ninosOrdenados = grupoData.ninos
@@ -773,6 +801,25 @@
               <div class="camp-stat-value">
                 <span class="camp-stat-day">${grupoData.total}</span>
                 <span class="camp-stat-detail">tokens totales</span>
+              </div>
+              <div style="margin-top: 8px; padding: 8px 12px; background: rgba(202, 138, 4, 0.1); border-radius: 6px; border: 1px solid rgba(202, 138, 4, 0.3);">
+                <div style="font-size: 0.9rem; color: #92400e; font-weight: 600;">
+                  Tokens por persona: ${tokensReales.toFixed(1)}
+                </div>
+                <div style="font-size: 0.8rem; color: #a16207; margin-top: 2px;">
+                  (${grupoData.total} tokens ÷ ${totalPersonasGrupo} personas)
+                </div>
+              </div>
+              <div style="margin-top: 6px; padding: 8px 12px; background: rgba(0, 0, 0, 0.05); border-radius: 6px; border: 1px solid ${colorCompensacion};">
+                <div style="font-size: 0.9rem; color: ${colorCompensacion}; font-weight: 700;">
+                  Tokens Compensados: ${tokensCompensados.toFixed(1)}
+                </div>
+                <div style="font-size: 0.75rem; color: ${colorCompensacion}; margin-top: 2px;">
+                  ${tipoGrupo} • Factor: ${factorCompensacion.toFixed(2)}x
+                </div>
+                <div style="font-size: 0.7rem; color: #64748b; margin-top: 3px;">
+                  Promedio campamento: ${promedioPersonasPorGrupo.toFixed(1)} personas/grupo
+                </div>
               </div>
             `;
             
