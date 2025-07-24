@@ -702,6 +702,63 @@ app.get('/api/castigos-historico', (req, res) => {
   });
 });
 
+// NUEVO: Endpoint para obtener el historial de compras de un niño
+app.get('/api/ninos/:id/historial', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  
+  if (isNaN(id)) {
+    return res.status(400).json({ error: 'ID inválido' });
+  }
+  
+  // Obtener todas las transacciones del niño con detalles de productos
+  db.all(
+    `SELECT 
+      t.id,
+      t.productos,
+      t.total,
+      t.fecha_hora as fecha
+     FROM transacciones t 
+     WHERE t.nino_id = ? 
+     ORDER BY t.fecha_hora DESC`,
+    [id],
+    (err, transacciones) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      
+      // Procesar las transacciones para expandir los productos
+      const historial = [];
+      
+      transacciones.forEach(transaccion => {
+        try {
+          // Parse de los productos (formato JSON string)
+          const productos = JSON.parse(transaccion.productos);
+          
+          // Para cada producto en la transacción, crear una entrada separada
+          productos.forEach(producto => {
+            historial.push({
+              id: transaccion.id,
+              producto: producto.nombre,
+              precio: producto.precio,
+              fecha: transaccion.fecha
+            });
+          });
+        } catch (parseError) {
+          // Si falla el parse, intentar con formato string simple
+          historial.push({
+            id: transaccion.id,
+            producto: transaccion.productos,
+            precio: transaccion.total,
+            fecha: transaccion.fecha
+          });
+        }
+      });
+      
+      res.json(historial);
+    }
+  );
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
   

@@ -6,6 +6,321 @@
   <link rel="stylesheet" href="styles.css">
   <!-- SheetJS para manejo de Excel -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  
+  <style>
+    /* History Modal Styles */
+    .history-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      opacity: 1;
+      transition: opacity 0.3s ease;
+      padding: 10px;
+    }
+
+    .history-modal-content {
+      background: white;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 500px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      animation: modalSlideIn 0.3s ease;
+      margin: auto;
+    }
+
+    @keyframes modalSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-30px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .history-header {
+      padding: 15px 20px;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      position: relative;
+      background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+      border-radius: 12px 12px 0 0;
+    }
+
+    .history-header h3 {
+      margin: 0;
+      color: #4338ca;
+      font-size: 1.2em;
+      font-weight: 600;
+    }
+
+    .history-header h4 {
+      margin: 0;
+      color: #6b7280;
+      font-weight: 500;
+      font-size: 0.95em;
+    }
+
+    .btn-close-modal {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      background: #ef4444;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      width: 60px;
+      height: 32px;
+      cursor: pointer;
+      font-size: 0.9em;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-close-modal:hover {
+      background: #dc2626;
+      transform: translateY(-1px);
+    }
+
+    .history-body {
+      padding: 15px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .loading-spinner {
+      text-align: center;
+      padding: 30px;
+      font-size: 1em;
+      color: #6b7280;
+    }
+
+    .empty-history, .error-history {
+      text-align: center;
+      padding: 30px 15px;
+      color: #6b7280;
+    }
+
+    .empty-icon, .error-icon {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .history-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+      padding: 12px 8px;
+      border-radius: 8px;
+      text-align: center;
+      border: 1px solid #e5e7eb;
+    }
+
+    .stat-number {
+      display: block;
+      font-size: 1.4em;
+      font-weight: 700;
+      color: #4338ca;
+      margin-bottom: 3px;
+    }
+
+    .stat-label {
+      font-size: 0.75em;
+      color: #6b7280;
+      font-weight: 500;
+      line-height: 1.2;
+    }
+
+    .history-timeline {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      background: white;
+    }
+
+    .purchase-item {
+      padding: 12px 15px;
+      border-bottom: 1px solid #f3f4f6;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.2s ease;
+    }
+
+    .purchase-item:last-child {
+      border-bottom: none;
+    }
+
+    .purchase-item:hover {
+      background: #f8fafc;
+    }
+
+    .purchase-info {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .purchase-product {
+      font-weight: 600;
+      color: #374151;
+      font-size: 1em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .purchase-time {
+      font-size: 0.8em;
+      color: #6b7280;
+      font-weight: 500;
+    }
+
+    .purchase-price {
+      font-weight: 700;
+      color: #059669;
+      font-size: 1.1em;
+      min-width: 65px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    /* Mobile-specific improvements */
+    @media (max-width: 768px) {
+      .history-modal {
+        padding: 5px;
+        align-items: flex-start;
+        padding-top: 20px;
+      }
+
+      .history-modal-content {
+        width: 100%;
+        max-width: 100%;
+        max-height: 90vh;
+        border-radius: 12px;
+      }
+
+      .history-header {
+        padding: 12px 15px;
+      }
+
+      .history-header h3 {
+        font-size: 1.1em;
+        margin-right: 70px;
+      }
+
+      .history-header h4 {
+        font-size: 0.9em;
+        margin-right: 70px;
+      }
+
+      .btn-close-modal {
+        top: 8px;
+        right: 10px;
+        width: 55px;
+        height: 28px;
+        font-size: 0.85em;
+      }
+
+      .history-body {
+        padding: 12px;
+      }
+
+      .history-stats {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        margin-bottom: 15px;
+      }
+
+      .stat-card {
+        padding: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: left;
+      }
+
+      .stat-number {
+        font-size: 1.3em;
+        margin-bottom: 0;
+      }
+
+      .stat-label {
+        font-size: 0.85em;
+      }
+
+      .history-timeline {
+        max-height: 250px;
+      }
+
+      .purchase-item {
+        padding: 10px 12px;
+      }
+
+      .purchase-product {
+        font-size: 0.95em;
+      }
+
+      .purchase-time {
+        font-size: 0.75em;
+      }
+
+      .purchase-price {
+        font-size: 1em;
+        min-width: 55px;
+      }
+
+      .loading-spinner, .empty-history, .error-history {
+        padding: 20px 10px;
+        font-size: 0.9em;
+      }
+
+      .empty-icon, .error-icon {
+        font-size: 2em;
+      }
+    }
+
+    /* Very small screens */
+    @media (max-width: 480px) {
+      .purchase-time {
+        font-size: 0.7em;
+        line-height: 1.2;
+      }
+
+      .stat-card {
+        padding: 8px;
+      }
+
+      .history-timeline {
+        max-height: 200px;
+      }
+    }
+  </style>
 </head>
 <body>
   <div class="setup-container">
@@ -208,10 +523,16 @@
               </div>
               <div class="nino-actions">
                 <button class="btn-edit" onclick="toggleEdit(${nino.id}, 'nino')" title="Editar">
-                  ✏️
+                  <span>✏️</span>
+                  <span>Editar</span>
+                </button>
+                <button class="btn-history" onclick="mostrarHistorial(${nino.id}, '${nino.nombre} ${nino.apellidos}')" title="Ver historial">
+                  <span>📊</span>
+                  <span>Historial</span>
                 </button>
                 <button class="btn-delete" onclick="eliminarItem(${nino.id}, 'nino', '${nino.nombre} ${nino.apellidos}')" title="Eliminar">
-                  🗑️
+                  <span>🗑️</span>
+                  <span>Eliminar</span>
                 </button>
               </div>
             </div>
@@ -365,10 +686,12 @@
                 </div>
                 <div class="producto-actions">
                   <button class="btn-edit" onclick="toggleEdit(${producto.id}, 'producto')" title="Editar">
-                    ✏️
+                    <span>✏️</span>
+                    <span>Editar</span>
                   </button>
                   <button class="btn-delete" onclick="eliminarItem(${producto.id}, 'producto', '${producto.nombre}')" title="Eliminar">
-                    🗑️
+                    <span>🗑️</span>
+                    <span>Eliminar</span>
                   </button>
                 </div>
               </div>
@@ -682,6 +1005,10 @@
     }
 
     function eliminarItem(id, tipo, nombre) {
+      // Remove any existing modals first
+      const existingModals = document.querySelectorAll('.delete-modal');
+      existingModals.forEach(modal => modal.remove());
+
       const modal = document.createElement('div');
       modal.className = 'delete-modal';
       modal.innerHTML = `
@@ -692,14 +1019,22 @@
           <p class="warning-text">Esta acción no se puede deshacer.</p>
           <div class="delete-actions">
             <button class="btn-cancel-delete" onclick="confirmarEliminacion(${id}, '${tipo}', this)">
-              <i>🗑️</i> Sí, eliminar
+              <span>🗑️</span> Sí, eliminar
             </button>
             <button class="btn-confirm-delete" onclick="cerrarModal(this)">
-              <i>❌</i> Cancelar
+              <span>❌</span> Cancelar
             </button>
           </div>
         </div>
       `;
+      
+      // Add click outside to close
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+          modal.remove();
+        }
+      });
+      
       document.body.appendChild(modal);
     }
 
@@ -798,6 +1133,110 @@
         toggleForm('form-producto');
       });
     });
+
+    function mostrarHistorial(ninoId, nombreCompleto) {
+      // Crear modal de historial
+      const modal = document.createElement('div');
+      modal.className = 'history-modal';
+      modal.innerHTML = `
+        <div class="history-modal-content">
+          <div class="history-header">
+            <h3>📊 Historial de compras</h3>
+            <h4>${nombreCompleto}</h4>
+            <button class="btn-close-modal" onclick="cerrarModalHistorial(this)">✕</button>
+          </div>
+          <div class="history-body">
+            <div class="loading-spinner">⏳ Cargando historial...</div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      // Cargar historial del niño
+      fetch(`/api/ninos/${ninoId}/historial`)
+        .then(res => res.json())
+        .then(historial => {
+          const historyBody = modal.querySelector('.history-body');
+          
+          if (!historial || historial.length === 0) {
+            historyBody.innerHTML = `
+              <div class="empty-history">
+                <div class="empty-icon">🛒</div>
+                <p>Este niño aún no ha realizado ninguna compra</p>
+              </div>
+            `;
+            return;
+          }
+
+          // Calcular estadísticas
+          const totalGastado = historial.reduce((sum, item) => sum + item.precio, 0);
+          const totalItems = historial.length;
+          const productosUnicos = [...new Set(historial.map(item => item.producto))].length;
+
+          let historialHTML = `
+            <div class="history-stats">
+              <div class="stat-card">
+                <span class="stat-number">${totalItems}</span>
+                <span class="stat-label">Compras totales</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-number">${totalGastado.toFixed(2)}€</span>
+                <span class="stat-label">Total gastado</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-number">${productosUnicos}</span>
+                <span class="stat-label">Productos únicos</span>
+              </div>
+            </div>
+            <div class="history-timeline">
+          `;
+
+          // Ordenar por fecha y hora (más reciente primero)
+          historial
+            .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+            .forEach(compra => {
+              const fechaCompleta = new Date(compra.fecha);
+              const fecha = fechaCompleta.toLocaleDateString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+              });
+              const hora = fechaCompleta.toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+              });
+              
+              historialHTML += `
+                <div class="purchase-item">
+                  <div class="purchase-info">
+                    <span class="purchase-product">${compra.producto}</span>
+                    <span class="purchase-time">${fecha} - ${hora}</span>
+                  </div>
+                  <span class="purchase-price">${compra.precio.toFixed(2)}€</span>
+                </div>
+              `;
+            });
+
+          historyBody.innerHTML = historialHTML + '</div>';
+        })
+        .catch(err => {
+          const historyBody = modal.querySelector('.history-body');
+          historyBody.innerHTML = `
+            <div class="error-history">
+              <div class="error-icon">❌</div>
+              <p>Error al cargar el historial. Por favor, intenta nuevamente más tarde.</p>
+            </div>
+          `;
+        });
+    }
+
+    function cerrarModalHistorial(element) {
+      const modal = element.closest('.history-modal');
+      if (modal) {
+        modal.remove();
+      }
+    }
   </script>
 </body>
 </html>
