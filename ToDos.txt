@@ -1,0 +1,4 @@
+[x] 1 Backup cada dia al correo x
+[x] 2 Imagenes a productos
+3 Mejorar el diseño de la app
+[x] 5 Mejorar autodeploy en Raspberry
