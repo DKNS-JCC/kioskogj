@@ -21,9 +21,8 @@ sudo apt-get install -y nginx python3-venv python3-pip curl git
 
 # 2. Instalar Node.js y pnpm (para construir el frontend en la Pi si aplica)
 if ! command -v node &> /dev/null; then
-    echo ">> Instalando Node.js..."
-    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-    sudo apt-get install -y nodejs
+    echo ">> Instalando Node.js y npm desde repositorios del sistema..."
+    sudo apt-get install -y nodejs npm
 fi
 if ! command -v pnpm &> /dev/null; then
     echo ">> Instalando pnpm..."
