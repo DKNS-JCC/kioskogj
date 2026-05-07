@@ -22,6 +22,22 @@ echo "=== Kiosko GJ — instalación en Raspberry Pi ==="
 echo "Directorio app : $APP_DIR"
 echo "Usuario        : $USER_NAME"
 
+# ─── 0. Comprobaciones previas ───────────────────────────────────────────
+# OctoPi (HAProxy + OctoPrint) usa el puerto 80. Si está activo, abortamos
+# antes de tocar nada para no dejar la Pi en estado inconsistente.
+if systemctl is-active --quiet haproxy 2>/dev/null \
+   || systemctl is-active --quiet octoprint 2>/dev/null; then
+    cat <<'EOF'
+⚠ Detectado OctoPi corriendo (HAProxy/OctoPrint en el puerto 80).
+   La instalación de Kiosko entraría en conflicto. Ejecuta primero:
+
+       bash deploy/uninstall_octopi.sh
+
+   y vuelve a lanzar este script.
+EOF
+    exit 1
+fi
+
 # ─── 1. Paquetes del sistema (sólo lo imprescindible) ────────────────────
 echo ">> Instalando dependencias base del sistema (nginx, curl, unzip, rsync, git)..."
 sudo apt-get update

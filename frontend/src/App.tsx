@@ -4,6 +4,7 @@ import Kiosko from "./pages/Kiosko";
 import Ajustes from "./pages/Ajustes";
 import Castigos from "./pages/Castigos";
 import Estadisticas from "./pages/Estadisticas";
+import Pedidos from "./pages/Pedidos";
 
 const router = createBrowserRouter([
   {
@@ -11,6 +12,7 @@ const router = createBrowserRouter([
     element: <Layout />,
     children: [
       { index: true, element: <Kiosko /> },
+      { path: "pedidos", element: <Pedidos /> },
       { path: "castigos", element: <Castigos /> },
       { path: "estadisticas", element: <Estadisticas /> },
       { path: "ajustes", element: <Ajustes /> },

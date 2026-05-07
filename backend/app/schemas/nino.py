@@ -39,3 +39,21 @@ class NinoInfo(BaseModel):
     saldo: float
     comprado_hoy: bool
     gastado_hoy: float
+
+
+class FilaImportError(BaseModel):
+    fila: int
+    razon: str
+
+
+class ImportResultado(BaseModel):
+    """Resumen tras procesar un CSV de alta masiva.
+
+    Las filas que fallan no abortan la operación: se registran y el resto
+    se inserta. Eso encaja con un Excel humano donde 1-2 filas pueden
+    estar mal formateadas y no quieres tener que repetir todo.
+    """
+
+    creados: int
+    total_filas: int
+    omitidos: list[FilaImportError]

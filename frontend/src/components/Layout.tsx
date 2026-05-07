@@ -1,16 +1,21 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { ShoppingCart, Lock, BarChart3, Settings } from "lucide-react";
+import { ShoppingCart, ClipboardList, Lock, BarChart3, Settings } from "lucide-react";
 import { useCartStore } from "../store/cartStore";
 import Toaster from "./ui/Toaster";
 import ConfirmDialogRoot from "./ui/ConfirmDialog";
+import { usePedidos } from "../api/pedidos";
 
 export default function Layout() {
   const items = useCartStore((state) => state.items);
   const totalItems = items.reduce((acc, item) => acc + item.cantidad, 0);
   const location = useLocation();
 
+  // Badge: cuántos pedidos pendientes hay (vista del encargado).
+  const { data: pendientes = [] } = usePedidos({ estado: "pendiente" });
+
   const navItems = [
     { to: "/", icon: ShoppingCart, label: "Kiosko", badge: totalItems },
+    { to: "/pedidos", icon: ClipboardList, label: "Pedidos", badge: pendientes.length },
     { to: "/castigos", icon: Lock, label: "Castigos" },
     { to: "/estadisticas", icon: BarChart3, label: "Stats" },
     { to: "/ajustes", icon: Settings, label: "Ajustes" },
@@ -20,6 +25,8 @@ export default function Layout() {
     switch (location.pathname) {
       case "/":
         return "Kiosko";
+      case "/pedidos":
+        return "Pedidos";
       case "/castigos":
         return "Castigos";
       case "/estadisticas":

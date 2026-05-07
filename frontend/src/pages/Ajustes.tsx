@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   Download,
+  FileSpreadsheet,
   LogOut,
   Pencil,
   Plus,
@@ -42,6 +43,7 @@ import { useAuthStore } from "../store/authStore";
 import { toast } from "../store/toastStore";
 import { eur } from "../lib/format";
 import CategoriaIcon from "../components/CategoriaIcon";
+import ImportarNinosModal from "../components/ImportarNinosModal";
 import type { NinoOut, ProductoOut } from "../api/types";
 
 type TabKey = "ninos" | "productos" | "config";
@@ -106,6 +108,7 @@ function NinosTab() {
 
   const [editando, setEditando] = useState<NinoOut | null>(null);
   const [creando, setCreando] = useState(false);
+  const [importando, setImportando] = useState(false);
   const [busqueda, setBusqueda] = useState("");
 
   const filtrados = useMemo(() => {
@@ -167,6 +170,14 @@ function NinosTab() {
         setBusqueda={setBusqueda}
         onCrear={() => setCreando(true)}
         textoCrear="Añadir niño"
+        extraAction={
+          <button
+            onClick={() => setImportando(true)}
+            className="flex items-center gap-1 px-3 py-2 rounded-xl bg-[#e9e9eb] text-[#1c1c1e] text-sm font-medium active:opacity-80"
+          >
+            <FileSpreadsheet size={16} /> Importar CSV
+          </button>
+        }
       />
 
       {isLoading && <p className="text-[#8e8e93] text-center py-4">Cargando...</p>}
@@ -175,7 +186,7 @@ function NinosTab() {
         <EmptyState
           icono={Users}
           titulo="Aún no hay niños"
-          mensaje="Añade el primero para empezar a registrar compras."
+          mensaje="Añade el primero o importa una lista desde Excel."
           textoCta="Añadir niño"
           onCta={() => setCreando(true)}
         />
@@ -275,6 +286,8 @@ function NinosTab() {
           }}
         />
       </Modal>
+
+      <ImportarNinosModal open={importando} onClose={() => setImportando(false)} />
     </div>
   );
 }
@@ -612,6 +625,7 @@ function BarraGestion({
   setBusqueda,
   onCrear,
   textoCrear,
+  extraAction,
 }: {
   total: number;
   unidad: string;
@@ -619,19 +633,23 @@ function BarraGestion({
   setBusqueda: (s: string) => void;
   onCrear: () => void;
   textoCrear: string;
+  extraAction?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center gap-2">
         <p className="text-sm text-[#8e8e93]">
           {total} {unidad}
         </p>
-        <button
-          onClick={onCrear}
-          className="flex items-center gap-1 px-3 py-2 rounded-xl bg-[#007AFF] text-white text-sm font-medium active:opacity-80"
-        >
-          <Plus size={16} /> {textoCrear}
-        </button>
+        <div className="flex items-center gap-2">
+          {extraAction}
+          <button
+            onClick={onCrear}
+            className="flex items-center gap-1 px-3 py-2 rounded-xl bg-[#007AFF] text-white text-sm font-medium active:opacity-80"
+          >
+            <Plus size={16} /> {textoCrear}
+          </button>
+        </div>
       </div>
       {total > 0 && (
         <div className="relative">

@@ -27,6 +27,7 @@ from app.routers import (
     configuracion,
     estadisticas,
     ninos,
+    pedidos,
     productos,
     transacciones,
 )
@@ -96,6 +97,7 @@ app.include_router(castigos.router)
 app.include_router(configuracion.router)
 app.include_router(estadisticas.router)
 app.include_router(backup.router)
+app.include_router(pedidos.router)
 
 import os
 os.makedirs("static/productos", exist_ok=True)

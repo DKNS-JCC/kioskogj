@@ -14,10 +14,19 @@ from app.schemas.estadisticas import (
     VentasDia,
 )
 from app.schemas.nino import (
+    FilaImportError,
+    ImportResultado,
     NinoCreate,
     NinoInfo,
     NinoOut,
     NinoUpdate,
+)
+from app.schemas.pedido import (
+    PedidoCreate,
+    PedidoLineaCreate,
+    PedidoLineaOut,
+    PedidoLineaUpdate,
+    PedidoOut,
 )
 from app.schemas.producto import (
     ProductoCreate,
@@ -34,6 +43,8 @@ from app.schemas.transaccion import (
 
 __all__ = [
     "NinoCreate", "NinoUpdate", "NinoOut", "NinoInfo",
+    "FilaImportError", "ImportResultado",
+    "PedidoCreate", "PedidoLineaCreate", "PedidoLineaOut", "PedidoLineaUpdate", "PedidoOut",
     "ProductoCreate", "ProductoUpdate", "ProductoOut",
     "LineaCompra", "TransaccionCreate", "TransaccionCreada",
     "TransaccionOut", "HistorialLinea",

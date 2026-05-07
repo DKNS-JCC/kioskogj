@@ -25,6 +25,64 @@ export interface NinoInfo {
   gastado_hoy: number;
 }
 
+export interface FilaImportError {
+  fila: number;
+  razon: string;
+}
+
+export interface ImportResultado {
+  creados: number;
+  total_filas: number;
+  omitidos: FilaImportError[];
+}
+
+// Pedidos: el monitor del grupo crea uno por niño, el encargado los completa.
+export type EstadoPedido = "pendiente" | "completado";
+export type EstadoLineaPedido =
+  | "pendiente"
+  | "entregado"
+  | "reemplazado"
+  | "descartado";
+
+export interface PedidoLineaCreate {
+  producto_id: number;
+  cantidad: number;
+}
+
+export interface PedidoCreate {
+  nino_id: number;
+  lineas: PedidoLineaCreate[];
+  nota?: string | null;
+}
+
+export interface PedidoLineaOut {
+  id: number;
+  producto_id: number | null;
+  producto_nombre: string;
+  producto_precio: number;
+  cantidad: number;
+  estado: EstadoLineaPedido;
+  reemplazo_texto: string | null;
+}
+
+export interface PedidoOut {
+  id: number;
+  nino_id: number | null;
+  nino_nombre: string;
+  grupo: number;
+  estado: EstadoPedido;
+  nota: string | null;
+  creado_en: string;
+  completado_en: string | null;
+  transaccion_id: number | null;
+  lineas: PedidoLineaOut[];
+}
+
+export interface PedidoLineaUpdate {
+  estado: EstadoLineaPedido;
+  reemplazo_texto?: string | null;
+}
+
 export type CategoriaProducto =
   | "bebida"
   | "snack"

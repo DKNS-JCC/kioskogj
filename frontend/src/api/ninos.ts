@@ -7,6 +7,7 @@ import {
 import { apiFetch } from "./client";
 import type {
   HistorialLinea,
+  ImportResultado,
   NinoCreate,
   NinoInfo,
   NinoOut,
@@ -23,6 +24,15 @@ export const ninosApi = {
   borrar: (id: number) => apiFetch<void>(`${BASE}/${id}`, { method: "DELETE" }),
   limpiar: () =>
     apiFetch<void>(`${BASE}/limpiar`, { method: "POST", requireAdminPin: true }),
+  importar: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiFetch<ImportResultado>(`${BASE}/importar`, {
+      method: "POST",
+      body: formData,
+      requireAdminPin: true,
+    });
+  },
   info: (id: number) => apiFetch<NinoInfo>(`${BASE}/${id}/info`),
   historial: (id: number) => apiFetch<HistorialLinea[]>(`${BASE}/${id}/historial`),
 };
@@ -90,6 +100,14 @@ export function useLimpiarNinos() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ninosApi.limpiar,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["ninos"] }),
+  });
+}
+
+export function useImportarNinos() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ninosApi.importar,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["ninos"] }),
   });
 }
