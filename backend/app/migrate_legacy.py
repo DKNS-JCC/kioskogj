@@ -27,7 +27,7 @@ import json
 import sqlite3
 import sys
 from collections.abc import Iterable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from loguru import logger
@@ -42,7 +42,6 @@ from app.models import (
     Producto,
     Transaccion,
 )
-
 
 # --- Utilidades de introspección ---
 
@@ -69,15 +68,15 @@ def _parse_fecha(valor) -> datetime:
     Acepta: ISO 8601 string, epoch ms (int), epoch s (int), o datetime.
     """
     if isinstance(valor, datetime):
-        return valor if valor.tzinfo else valor.replace(tzinfo=timezone.utc)
+        return valor if valor.tzinfo else valor.replace(tzinfo=UTC)
     if isinstance(valor, (int, float)):
         # Heurística: si parece milisegundos (>10^12), dividir.
         ts = valor / 1000 if valor > 1e12 else valor
-        return datetime.fromtimestamp(ts, tz=timezone.utc)
+        return datetime.fromtimestamp(ts, tz=UTC)
     if isinstance(valor, str):
         try:
             dt = datetime.fromisoformat(valor.replace("Z", "+00:00"))
-            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+            return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
         except ValueError:
             pass
     raise ValueError(f"Fecha no reconocida: {valor!r}")
@@ -102,7 +101,7 @@ def migrar_ninos(legacy: sqlite3.Connection, sesion: Session) -> int:
                 apellidos=fila.get("apellidos", "").strip() or "",
                 grupo=int(fila.get("grupo") or 1),
                 dinero=float(fila.get("dinero") or 0.0),
-                creado_en=_parse_fecha(fila["creado_en"]) if fila.get("creado_en") else datetime.now(timezone.utc),
+                creado_en=_parse_fecha(fila["creado_en"]) if fila.get("creado_en") else datetime.now(UTC),
             )
             sesion.add(nino)
             insertados += 1
@@ -127,7 +126,7 @@ def migrar_productos(legacy: sqlite3.Connection, sesion: Session) -> int:
                 nombre=fila.get("nombre", "").strip() or "Sin nombre",
                 precio=float(fila["precio"]),
                 activo=bool(fila.get("activo", True)),
-                creado_en=_parse_fecha(fila["creado_en"]) if fila.get("creado_en") else datetime.now(timezone.utc),
+                creado_en=_parse_fecha(fila["creado_en"]) if fila.get("creado_en") else datetime.now(UTC),
             )
             sesion.add(producto)
             insertados += 1
@@ -172,7 +171,7 @@ def migrar_transacciones(legacy: sqlite3.Connection, sesion: Session) -> int:
                 nino_nombre=(fila.get("nino_nombre") or "").strip() or "Desconocido",
                 productos_json=productos_json,
                 total=float(fila["total"]),
-                fecha_hora=_parse_fecha(fila["fecha_hora"]) if fila.get("fecha_hora") else datetime.now(timezone.utc),
+                fecha_hora=_parse_fecha(fila["fecha_hora"]) if fila.get("fecha_hora") else datetime.now(UTC),
                 reembolsada=bool(fila.get("reembolsada", False)),
             )
             sesion.add(tx)

@@ -36,7 +36,7 @@ export interface ImportResultado {
   omitidos: FilaImportError[];
 }
 
-// Pedidos: el monitor del grupo crea uno por niño, el encargado los completa.
+// Pedidos: el monitor del grupo crea uno por grupo, el encargado los completa.
 export type EstadoPedido = "pendiente" | "completado";
 export type EstadoLineaPedido =
   | "pendiente"
@@ -49,9 +49,14 @@ export interface PedidoLineaCreate {
   cantidad: number;
 }
 
-export interface PedidoCreate {
+export interface PedidoNinoCreate {
   nino_id: number;
   lineas: PedidoLineaCreate[];
+}
+
+export interface PedidoCreate {
+  grupo: number;
+  ninos: PedidoNinoCreate[];
   nota?: string | null;
 }
 
@@ -65,17 +70,22 @@ export interface PedidoLineaOut {
   reemplazo_texto: string | null;
 }
 
-export interface PedidoOut {
+export interface PedidoNinoOut {
   id: number;
   nino_id: number | null;
   nino_nombre: string;
+  transaccion_id: number | null;
+  lineas: PedidoLineaOut[];
+}
+
+export interface PedidoOut {
+  id: number;
   grupo: number;
   estado: EstadoPedido;
   nota: string | null;
   creado_en: string;
   completado_en: string | null;
-  transaccion_id: number | null;
-  lineas: PedidoLineaOut[];
+  ninos: PedidoNinoOut[];
 }
 
 export interface PedidoLineaUpdate {

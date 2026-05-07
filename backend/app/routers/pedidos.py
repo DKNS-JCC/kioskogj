@@ -1,16 +1,14 @@
 """Pedidos: lo que pide cada monitor para los niños de su grupo.
 
 Ciclo de vida:
-  - Monitor del grupo crea un pedido por niño con sus líneas (productos del
-    catálogo + cantidades).
-  - El encargado del kiosko ve la cola pendiente. Por cada línea decide:
-      * entregado    → se cobra al completar el pedido.
-      * reemplazado  → texto libre con lo que dio en su lugar (no se cobra).
-      * descartado   → no había, no se da nada (no se cobra).
-  - Cuando todas las líneas están resueltas (ninguna pendiente), el
-    encargado completa el pedido y se genera UNA transacción con las
-    líneas entregadas usando la misma lógica que la compra directa
-    (castigo + saldo + cota).
+  - Monitor del grupo crea un pedido para TODO su grupo (o parte de él).
+  - Cada pedido engloba N niños, y cada niño tiene M líneas de productos.
+  - El encargado del kiosko ve la cola pendiente agrupada por Pedido (grupo).
+  - Por cada línea decide: entregado, reemplazado o descartado.
+  - Cuando todas las líneas de TODOS los niños de un pedido están resueltas,
+    el encargado completa el pedido.
+  - Al completar, se genera UNA transacción por cada niño que tenga productos
+    "entregados", usando la lógica estándar de compra.
 """
 from __future__ import annotations
 
@@ -19,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_session
-from app.models import Nino, Pedido, PedidoLinea, Producto
+from app.models import Nino, Pedido, PedidoLinea, PedidoNino, Producto
 from app.schemas import (
     PedidoCreate,
     PedidoLineaOut,
@@ -31,7 +29,6 @@ from app.schemas.transaccion import LineaCompra
 from app.services import compra as compra_service
 from app.tiempo import ahora_utc
 
-
 router = APIRouter(prefix="/api/pedidos", tags=["pedidos"])
 
 
@@ -40,45 +37,56 @@ router = APIRouter(prefix="/api/pedidos", tags=["pedidos"])
 
 @router.post("", response_model=PedidoOut, status_code=status.HTTP_201_CREATED)
 def crear(payload: PedidoCreate, sesion: Session = Depends(get_session)) -> Pedido:
-    nino = sesion.get(Nino, payload.nino_id)
-    if nino is None:
-        raise HTTPException(status_code=404, detail="Niño no encontrado.")
+    # 1. Cargar todos los niños implicados
+    nino_ids = {n.nino_id for n in payload.ninos}
+    ninos = sesion.scalars(select(Nino).where(Nino.id.in_(nino_ids))).all()
+    ninos_por_id = {n.id: n for n in ninos}
 
-    # Cargar productos por id de una sola query para validar y snapshotear precios.
-    ids = list({l.producto_id for l in payload.lineas})
-    productos = sesion.scalars(select(Producto).where(Producto.id.in_(ids))).all()
-    por_id = {p.id: p for p in productos}
+    # Validar que todos los niños existen
+    for nid in nino_ids:
+        if nid not in ninos_por_id:
+            raise HTTPException(status_code=404, detail=f"Niño {nid} no encontrado.")
 
+    # 2. Cargar todos los productos implicados
+    prod_ids = {linea.producto_id for n in payload.ninos for linea in n.lineas}
+    productos = sesion.scalars(select(Producto).where(Producto.id.in_(prod_ids))).all()
+    prods_por_id = {p.id: p for p in productos}
+
+    # Validar productos
+    for pid in prod_ids:
+        p = prods_por_id.get(pid)
+        if p is None:
+            raise HTTPException(status_code=404, detail=f"Producto {pid} no encontrado.")
+        if not p.activo:
+            raise HTTPException(status_code=409, detail=f"Producto '{p.nombre}' está retirado.")
+
+    # 3. Crear el Pedido (Grupo)
     pedido = Pedido(
-        nino_id=nino.id,
-        nino_nombre=f"{nino.nombre} {nino.apellidos}".strip(),
-        grupo=nino.grupo,
+        grupo=payload.grupo,
         estado="pendiente",
         nota=payload.nota,
         creado_en=ahora_utc(),
     )
 
-    for linea in payload.lineas:
-        prod = por_id.get(linea.producto_id)
-        if prod is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Producto {linea.producto_id} no encontrado.",
-            )
-        if not prod.activo:
-            raise HTTPException(
-                status_code=409,
-                detail=f"Producto '{prod.nombre}' está retirado.",
-            )
-        pedido.lineas.append(
-            PedidoLinea(
-                producto_id=prod.id,
-                producto_nombre=prod.nombre,
-                producto_precio=prod.precio,
-                cantidad=linea.cantidad,
-                estado="pendiente",
-            )
+    # 4. Añadir niños y sus líneas
+    for nino_data in payload.ninos:
+        nino = ninos_por_id[nino_data.nino_id]
+        p_nino = PedidoNino(
+            nino_id=nino.id,
+            nino_nombre=f"{nino.nombre} {nino.apellidos}".strip(),
         )
+        for linea_data in nino_data.lineas:
+            prod = prods_por_id[linea_data.producto_id]
+            p_nino.lineas.append(
+                PedidoLinea(
+                    producto_id=prod.id,
+                    producto_nombre=prod.nombre,
+                    producto_precio=prod.precio,
+                    cantidad=linea_data.cantidad,
+                    estado="pendiente",
+                )
+            )
+        pedido.ninos.append(p_nino)
 
     sesion.add(pedido)
     sesion.commit()
@@ -124,15 +132,19 @@ def actualizar_linea(
     payload: PedidoLineaUpdate,
     sesion: Session = Depends(get_session),
 ) -> PedidoLinea:
-    pedido = sesion.get(Pedido, pedido_id)
-    if pedido is None:
-        raise HTTPException(status_code=404, detail="Pedido no encontrado.")
+    # Verificamos que la línea existe y pertenece indirectamente al pedido
+    linea = sesion.get(PedidoLinea, linea_id)
+    if linea is None:
+        raise HTTPException(status_code=404, detail="Línea no encontrada.")
+    
+    # Navegamos hacia arriba para validar el pedido
+    p_nino = linea.pedido_nino
+    if p_nino.pedido_id != pedido_id:
+        raise HTTPException(status_code=400, detail="La línea no pertenece a este pedido.")
+
+    pedido = p_nino.pedido
     if pedido.estado != "pendiente":
         raise HTTPException(status_code=409, detail="El pedido ya está completado.")
-
-    linea = sesion.get(PedidoLinea, linea_id)
-    if linea is None or linea.pedido_id != pedido_id:
-        raise HTTPException(status_code=404, detail="Línea no encontrada.")
 
     if payload.estado == "reemplazado" and not (payload.reemplazo_texto or "").strip():
         raise HTTPException(
@@ -150,7 +162,7 @@ def actualizar_linea(
     return linea
 
 
-# ─── Completar (genera transacción) ───────────────────────────────────────
+# ─── Completar (genera transacciones) ─────────────────────────────────────
 
 
 @router.post("/{pedido_id}/completar", response_model=PedidoOut)
@@ -160,58 +172,62 @@ def completar(pedido_id: int, sesion: Session = Depends(get_session)) -> Pedido:
         raise HTTPException(status_code=404, detail="Pedido no encontrado.")
     if pedido.estado != "pendiente":
         raise HTTPException(status_code=409, detail="El pedido ya está completado.")
-    if pedido.nino_id is None:
-        raise HTTPException(
-            status_code=409,
-            detail="El niño del pedido fue borrado; no se puede completar.",
-        )
 
-    pendientes = [l for l in pedido.lineas if l.estado == "pendiente"]
-    if pendientes:
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                f"Faltan {len(pendientes)} líneas por resolver "
-                "(márcalas como entregadas, reemplazadas o descartadas)."
-            ),
-        )
+    # 1. Validar que TODO está resuelto
+    for p_nino in pedido.ninos:
+        for linea in p_nino.lineas:
+            if linea.estado == "pendiente":
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Faltan líneas por resolver para {p_nino.nino_nombre}.",
+                )
 
-    entregadas = [l for l in pedido.lineas if l.estado == "entregado"]
-    tx_id: int | None = None
+    # 2. Procesar cada niño
+    for p_nino in pedido.ninos:
+        if p_nino.nino_id is None:
+            # Si el niño fue borrado, no podemos cobrarle.
+            # Podríamos ignorarlo si no tiene entregas, pero por seguridad abortamos
+            # si tiene algo que cobrar.
+            entregadas = [linea for linea in p_nino.lineas if linea.estado == "entregado"]
+            if entregadas:
+                 raise HTTPException(
+                    status_code=409,
+                    detail=f"El niño {p_nino.nino_nombre} fue borrado; no se pueden cobrar sus entregas.",
+                )
+            continue
 
-    if entregadas:
-        # Si algún producto entregado fue borrado del catálogo, abortamos para
-        # no cobrar a precios desactualizados o sin referencia.
-        sin_producto = [l for l in entregadas if l.producto_id is None]
+        entregadas = [linea for linea in p_nino.lineas if linea.estado == "entregado"]
+        if not entregadas:
+            continue
+
+        # Validar productos existentes para cobrar
+        sin_producto = [linea for linea in entregadas if linea.producto_id is None]
         if sin_producto:
-            nombres = ", ".join(l.producto_nombre for l in sin_producto)
+            nombres = ", ".join(linea.producto_nombre for linea in sin_producto)
             raise HTTPException(
                 status_code=409,
-                detail=(
-                    f"Productos del pedido eliminados del catálogo: {nombres}. "
-                    "Márcalos como reemplazados o descartados."
-                ),
+                detail=f"Productos eliminados del catálogo para {p_nino.nino_nombre}: {nombres}.",
             )
 
         lineas_compra = [
-            LineaCompra(id=l.producto_id, cantidad=l.cantidad)  # type: ignore[arg-type]
-            for l in entregadas
+            LineaCompra(id=linea.producto_id, cantidad=linea.cantidad)  # type: ignore[arg-type]
+            for linea in entregadas
         ]
+
         try:
             resultado = compra_service.crear_compra(
-                sesion, pedido.nino_id, lineas_compra
+                sesion, p_nino.nino_id, lineas_compra
             )
+            p_nino.transaccion_id = resultado.transaccion.id
         except compra_service.ErrorCompra as e:
             sesion.rollback()
             raise HTTPException(
                 status_code=e.http,
-                detail={"codigo": e.codigo, "mensaje": str(e)},
+                detail={"codigo": e.codigo, "mensaje": f"{p_nino.nino_nombre}: {str(e)}"},
             ) from e
-        tx_id = resultado.transaccion.id
 
     pedido.estado = "completado"
     pedido.completado_en = ahora_utc()
-    pedido.transaccion_id = tx_id
     sesion.commit()
     sesion.refresh(pedido)
     return pedido

@@ -12,6 +12,7 @@ Arrancar en desarrollo:
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from contextlib import asynccontextmanager
 
@@ -99,7 +100,6 @@ app.include_router(estadisticas.router)
 app.include_router(backup.router)
 app.include_router(pedidos.router)
 
-import os
 os.makedirs("static/productos", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 

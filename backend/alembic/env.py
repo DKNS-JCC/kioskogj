@@ -12,14 +12,13 @@ from __future__ import annotations
 
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
-
-from app.config import settings
-from app.db import Base
 
 # Importar para que los metadatos contengan todas las tablas.
 import app.models  # noqa: F401
+from alembic import context
+from app.config import settings
+from app.db import Base
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

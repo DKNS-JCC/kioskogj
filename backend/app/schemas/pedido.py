@@ -5,7 +5,6 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 # Estados como Literal: tipo seguro y se ven en el OpenAPI.
 EstadoPedido = Literal["pendiente", "completado"]
 EstadoLinea = Literal["pendiente", "entregado", "reemplazado", "descartado"]
@@ -18,9 +17,18 @@ class PedidoLineaCreate(BaseModel):
     cantidad: int = Field(..., gt=0, le=99)
 
 
-class PedidoCreate(BaseModel):
+class PedidoNinoCreate(BaseModel):
+    """Líneas asignadas a un niño específico dentro de un pedido de grupo."""
+
     nino_id: int
     lineas: list[PedidoLineaCreate] = Field(..., min_length=1)
+
+
+class PedidoCreate(BaseModel):
+    """Creación de un pedido para un grupo entero (varios niños)."""
+
+    grupo: int
+    ninos: list[PedidoNinoCreate] = Field(..., min_length=1)
     nota: str | None = Field(default=None, max_length=200)
 
 
@@ -42,16 +50,23 @@ class PedidoLineaOut(BaseModel):
     reemplazo_texto: str | None
 
 
-class PedidoOut(BaseModel):
+class PedidoNinoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     nino_id: int | None
     nino_nombre: str
+    transaccion_id: int | None
+    lineas: list[PedidoLineaOut]
+
+
+class PedidoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
     grupo: int
     estado: EstadoPedido
     nota: str | None
     creado_en: datetime
     completado_en: datetime | None
-    transaccion_id: int | None
-    lineas: list[PedidoLineaOut]
+    ninos: list[PedidoNinoOut]

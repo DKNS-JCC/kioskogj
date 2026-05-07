@@ -8,7 +8,7 @@ empezaría a las 02:00 hora local en verano. Mal.
 
 from __future__ import annotations
 
-from datetime import datetime, time, timedelta, timezone
+from datetime import UTC, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from app.config import settings
@@ -19,7 +19,7 @@ def tz() -> ZoneInfo:
 
 
 def ahora_utc() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def ahora_ms() -> int:
@@ -32,7 +32,7 @@ def inicio_dia_local(momento: datetime | None = None) -> datetime:
     momento = momento or ahora_utc()
     local = momento.astimezone(tz())
     inicio_local = datetime.combine(local.date(), time.min, tzinfo=tz())
-    return inicio_local.astimezone(timezone.utc)
+    return inicio_local.astimezone(UTC)
 
 
 def fin_dia_local(momento: datetime | None = None) -> datetime:

@@ -11,7 +11,6 @@ from app.models import Transaccion
 from app.schemas.estadisticas import EstadisticasOut, TopNino, VentasDia
 from app.tiempo import inicio_dia_local
 
-
 _DIAS_GRAFICO = 10
 
 

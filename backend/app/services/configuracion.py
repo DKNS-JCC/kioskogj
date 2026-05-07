@@ -5,7 +5,6 @@ sembrarlo por todos los routers.
 
 from __future__ import annotations
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings

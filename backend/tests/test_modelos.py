@@ -4,7 +4,7 @@ que las constraints (FKs, checks) están activas con los pragmas de SQLite.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy.exc import IntegrityError
@@ -68,7 +68,7 @@ def test_fk_transaccion_set_null_al_borrar_nino(session: Session) -> None:
         nino_nombre="A B",
         productos_json="[]",
         total=0.0,
-        fecha_hora=datetime.now(timezone.utc),
+        fecha_hora=datetime.now(UTC),
     )
     session.add(tx)
     session.commit()
