@@ -26,7 +26,7 @@ if ! command -v node &> /dev/null; then
 fi
 if ! command -v pnpm &> /dev/null; then
     echo ">> Instalando pnpm..."
-    sudo npm install -g pnpm
+    sudo npm install -g "pnpm@^9"
 fi
 
 # 3. Instalar `uv` si no existe
