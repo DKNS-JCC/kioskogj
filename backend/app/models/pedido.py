@@ -19,7 +19,7 @@ class Pedido(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     grupo: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
 
-    # "pendiente" o "completado".
+    # "pendiente" | "preparado" | "completado".
     estado: Mapped[str] = mapped_column(String, nullable=False, default="pendiente", index=True)
 
     nota: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -29,6 +29,9 @@ class Pedido(Base):
         nullable=False,
         default=lambda: datetime.now(UTC),
         index=True,
+    )
+    preparado_en: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
     completado_en: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -94,6 +97,7 @@ class PedidoLinea(Base):
     producto_precio: Mapped[float] = mapped_column(Float, nullable=False)
     cantidad: Mapped[int] = mapped_column(Integer, nullable=False)
 
+    # "pendiente" | "listo" | "reemplazado" | "descartado" | "entregado".
     estado: Mapped[str] = mapped_column(String, nullable=False, default="pendiente")
     reemplazo_texto: Mapped[str | None] = mapped_column(String, nullable=True)
 

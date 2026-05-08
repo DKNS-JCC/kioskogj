@@ -6,8 +6,8 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 # Estados como Literal: tipo seguro y se ven en el OpenAPI.
-EstadoPedido = Literal["pendiente", "completado"]
-EstadoLinea = Literal["pendiente", "entregado", "reemplazado", "descartado"]
+EstadoPedido = Literal["pendiente", "preparado", "completado"]
+EstadoLinea = Literal["pendiente", "listo", "entregado", "reemplazado", "descartado"]
 
 
 class PedidoLineaCreate(BaseModel):
@@ -30,6 +30,13 @@ class PedidoCreate(BaseModel):
     grupo: int
     ninos: list[PedidoNinoCreate] = Field(..., min_length=1)
     nota: str | None = Field(default=None, max_length=200)
+
+
+class PedidoDuplicadoError(BaseModel):
+    """Respuesta 409 cuando ya existe un pedido abierto para el grupo."""
+
+    duplicado: bool = True
+    pedidos_existentes: list[int]
 
 
 class PedidoLineaUpdate(BaseModel):
@@ -68,5 +75,6 @@ class PedidoOut(BaseModel):
     estado: EstadoPedido
     nota: str | None
     creado_en: datetime
+    preparado_en: datetime | None
     completado_en: datetime | None
     ninos: list[PedidoNinoOut]

@@ -24,6 +24,15 @@ interface LineaCarrito {
 
 type Paso = "grupo" | "ninos" | "lineas";
 
+function esDuplicado(detail: unknown): detail is { duplicado: true; pedidos_existentes: number[] } {
+  return (
+    !!detail &&
+    typeof detail === "object" &&
+    (detail as { duplicado?: boolean }).duplicado === true &&
+    Array.isArray((detail as { pedidos_existentes?: unknown }).pedidos_existentes)
+  );
+}
+
 export default function NuevoPedidoModal({ open, onClose }: Props) {
   const { data: ninos = [] } = useNinos();
   const { data: productos = [] } = useProductos(true);
@@ -114,9 +123,9 @@ export default function NuevoPedidoModal({ open, onClose }: Props) {
     toast.ok(`Añadido ${prod.nombre} a todos`);
   }
 
-  async function enviar() {
+  async function enviar(confirmarDuplicado = false) {
     if (ninosSeleccionados.length === 0 || total === 0) return;
-    
+
     const ninosPayload: PedidoNinoCreate[] = ninosSeleccionados
       .filter(id => (carrito[id]?.length || 0) > 0)
       .map((id) => ({
@@ -134,14 +143,28 @@ export default function NuevoPedidoModal({ open, onClose }: Props) {
 
     try {
       await crear.mutateAsync({
-        grupo: grupo!,
-        ninos: ninosPayload,
-        nota: nota.trim() || null,
+        data: {
+          grupo: grupo!,
+          ninos: ninosPayload,
+          nota: nota.trim() || null,
+        },
+        confirmarDuplicado,
       });
       toast.ok(`Pedido del Grupo ${grupo} enviado.`);
       cerrar();
     } catch (e) {
-        const msg = e instanceof ApiError ? (typeof e.message === 'string' ? e.message : (e.message as any).mensaje) : "Error.";
+        if (e instanceof ApiError && e.status === 409 && esDuplicado(e.detail)) {
+          const ids = (e.detail as { pedidos_existentes: number[] }).pedidos_existentes;
+          const seguro = window.confirm(
+            `Ya hay ${ids.length} pedido(s) abierto(s) para el Grupo ${grupo} ` +
+              `(IDs: ${ids.join(", ")}).\n\n¿Seguro que quieres crear OTRO?`
+          );
+          if (seguro) {
+            await enviar(true);
+          }
+          return;
+        }
+        const msg = e instanceof ApiError ? e.message : "Error.";
         toast.error(msg);
     }
   }
@@ -302,7 +325,7 @@ export default function NuevoPedidoModal({ open, onClose }: Props) {
                     Total Grupo: <span className="font-bold text-[#1c1c1e] text-sm tabular-nums">{eur(total)}</span>
                 </div>
                 <button
-                    onClick={enviar}
+                    onClick={() => enviar(false)}
                     disabled={total === 0 || crear.isPending}
                     className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[#34C759] text-white text-sm font-bold disabled:opacity-50 shadow-sm"
                 >

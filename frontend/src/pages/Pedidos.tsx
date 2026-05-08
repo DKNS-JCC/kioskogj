@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
 import {
   Check,
+  ChefHat,
   ChevronDown,
   ChevronRight,
   Plus,
   Replace,
   Trash2,
+  Truck,
   X,
   User,
 } from "lucide-react";
@@ -14,6 +16,7 @@ import {
   useActualizarLinea,
   useCompletarPedido,
   useBorrarPedido,
+  useMarcarPreparado,
 } from "../api/pedidos";
 import { ApiError } from "../api/client";
 import { eur, fechaCorta } from "../lib/format";
@@ -30,19 +33,33 @@ import type {
   PedidoNinoOut,
 } from "../api/types";
 
+// Tres fases visibles. Cada una muestra distintos pedidos y distintas acciones.
+type Fase = EstadoPedido;
+
+const FASES: { v: Fase; label: string }[] = [
+  { v: "pendiente", label: "Por preparar" },
+  { v: "preparado", label: "Por repartir" },
+  { v: "completado", label: "Completados" },
+];
+
 export default function Pedidos() {
-  const [vista, setVista] = useState<EstadoPedido>("pendiente");
+  const [vista, setVista] = useState<Fase>("pendiente");
   const [nuevoOpen, setNuevoOpen] = useState(false);
 
   const { data: pedidos = [], isLoading } = usePedidos({ estado: vista });
 
-  // Ordenamos pedidos por grupo y luego por fecha
   const pedidosOrdenados = useMemo(() => {
     return [...pedidos].sort((a, b) => {
       if (a.grupo !== b.grupo) return a.grupo - b.grupo;
       return new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime();
     });
   }, [pedidos]);
+
+  const vacioMsg: Record<Fase, string> = {
+    pendiente: "No hay pedidos por preparar.",
+    preparado: "No hay pedidos por repartir.",
+    completado: "Aún no hay pedidos completados.",
+  };
 
   return (
     <div className="p-4 pb-24 max-w-3xl mx-auto flex flex-col gap-4">
@@ -57,19 +74,14 @@ export default function Pedidos() {
       </header>
 
       <div className="inline-flex rounded-lg bg-[#e9e9eb] p-1">
-        {(
-          [
-            { v: "pendiente", label: "Pendientes" },
-            { v: "completado", label: "Completados" },
-          ] as const
-        ).map((opt) => {
+        {FASES.map((opt) => {
           const activo = opt.v === vista;
           return (
             <button
               key={opt.v}
               onClick={() => setVista(opt.v)}
               className={cn(
-                "flex-1 px-4 py-1.5 text-sm font-medium rounded-md transition-all",
+                "flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all",
                 activo
                   ? "bg-white text-[#1c1c1e] shadow-sm"
                   : "text-[#3c3c43]/80"
@@ -84,13 +96,11 @@ export default function Pedidos() {
       {isLoading && <p className="text-[#8e8e93] text-center py-8">Cargando...</p>}
 
       {!isLoading && pedidosOrdenados.length === 0 && (
-        <p className="text-center text-[#8e8e93] py-12">
-          {vista === "pendiente" ? "No hay pedidos pendientes." : "Aún no hay pedidos completados."}
-        </p>
+        <p className="text-center text-[#8e8e93] py-12">{vacioMsg[vista]}</p>
       )}
 
       {pedidosOrdenados.map((p) => (
-        <TarjetaPedido key={p.id} pedido={p} />
+        <TarjetaPedido key={p.id} pedido={p} fase={vista} />
       ))}
 
       <NuevoPedidoModal open={nuevoOpen} onClose={() => setNuevoOpen(false)} />
@@ -100,35 +110,62 @@ export default function Pedidos() {
 
 // ─── Tarjeta de un pedido (Grupo) ────────────────────────────────────────
 
-function TarjetaPedido({ pedido }: { pedido: PedidoOut }) {
-  const [abierto, setAbierto] = useState(pedido.estado === "pendiente");
+function TarjetaPedido({ pedido, fase }: { pedido: PedidoOut; fase: Fase }) {
+  const [abierto, setAbierto] = useState(fase !== "completado");
 
   const lineasTotales = pedido.ninos.flatMap((n) => n.lineas);
-  const pendientesCount = lineasTotales.filter((l) => l.estado === "pendiente").length;
-  const todasResueltas = pendientesCount === 0;
 
+  // Cuenta de líneas por hacer en cada fase.
+  const lineasPorResolver =
+    fase === "pendiente"
+      ? lineasTotales.filter((l) => l.estado === "pendiente").length
+      : fase === "preparado"
+        ? lineasTotales.filter((l) => l.estado === "listo" || l.estado === "reemplazado").length
+        : 0;
+
+  // Total estimado: lo que aún cuenta como "vivo" + lo entregado.
   const total = lineasTotales
-    .filter((l) => l.estado === "entregado" || l.estado === "pendiente")
+    .filter((l) =>
+      l.estado === "pendiente" ||
+      l.estado === "listo" ||
+      l.estado === "reemplazado" ||
+      l.estado === "entregado"
+    )
     .reduce((s, l) => s + l.producto_precio * l.cantidad, 0);
 
+  const preparar = useMarcarPreparado();
   const completar = useCompletarPedido();
   const borrar = useBorrarPedido();
 
-  // Resumen de productos pendientes para el grupo
-  const resumenPendiente = useMemo(() => {
-    if (pedido.estado !== "pendiente") return [];
+  // Resumen agregado de productos para el kiosko (qué hay que servir en bloque).
+  const resumenAgregado = useMemo(() => {
+    if (fase !== "pendiente") return [];
     const acum = new Map<string, number>();
     for (const l of lineasTotales) {
       if (l.estado !== "pendiente") continue;
       acum.set(l.producto_nombre, (acum.get(l.producto_nombre) ?? 0) + l.cantidad);
     }
     return [...acum.entries()].sort((a, b) => b[1] - a[1]);
-  }, [lineasTotales, pedido.estado]);
+  }, [lineasTotales, fase]);
+
+  async function pedirPreparar() {
+    if (lineasPorResolver > 0) return;
+    const ok = await confirmar({
+      titulo: "Marcar como preparado",
+      mensaje: `El monitor del Grupo ${pedido.grupo} podrá venir a recoger y repartir.`,
+      textoConfirmar: "Marcar preparado",
+    });
+    if (!ok) return;
+    preparar.mutate(pedido.id, {
+      onSuccess: () => toast.ok("Pedido preparado."),
+      onError: (e) => toast.error(e instanceof ApiError ? e.message : "Error."),
+    });
+  }
 
   async function pedirCompletar() {
     const entregadas = lineasTotales.filter((l) => l.estado === "entregado");
     const ok = await confirmar({
-      titulo: "Completar pedido grupal",
+      titulo: "Completar y cobrar",
       mensaje:
         entregadas.length === 0
           ? `No hay líneas entregadas. El pedido del Grupo ${pedido.grupo} se cerrará sin cobrar nada.`
@@ -138,10 +175,7 @@ function TarjetaPedido({ pedido }: { pedido: PedidoOut }) {
     if (!ok) return;
     completar.mutate(pedido.id, {
       onSuccess: () => toast.ok("Pedido completado."),
-      onError: (e) => {
-        const msg = e instanceof ApiError ? (typeof e.message === 'string' ? e.message : (e.message as any).mensaje) : "Error.";
-        toast.error(msg);
-      },
+      onError: (e) => toast.error(e instanceof ApiError ? e.message : "Error."),
     });
   }
 
@@ -155,9 +189,16 @@ function TarjetaPedido({ pedido }: { pedido: PedidoOut }) {
     if (!ok) return;
     borrar.mutate(pedido.id, {
       onSuccess: () => toast.ok("Pedido borrado."),
-      onError: (e) => toast.error(e instanceof Error ? e.message : "Error."),
+      onError: (e) => toast.error(e instanceof ApiError ? e.message : "Error."),
     });
   }
+
+  const subtitulo =
+    fase === "pendiente"
+      ? `${lineasPorResolver} pendientes`
+      : fase === "preparado"
+        ? `${lineasPorResolver} por repartir`
+        : `Completado ${pedido.completado_en ? fechaCorta(pedido.completado_en) : ""}`;
 
   return (
     <article className="bg-white rounded-2xl overflow-hidden shadow-sm border border-[#e5e5ea]">
@@ -172,10 +213,7 @@ function TarjetaPedido({ pedido }: { pedido: PedidoOut }) {
           <div className="text-left min-w-0">
             <p className="font-bold text-[#1c1c1e]">Grupo {pedido.grupo}</p>
             <p className="text-xs text-[#8e8e93]">
-              {pedido.ninos.length} {pedido.ninos.length === 1 ? "niño" : "niños"} ·{" "}
-              {pedido.estado === "pendiente"
-                ? `${pendientesCount} pendientes`
-                : `Completado ${pedido.completado_en ? fechaCorta(pedido.completado_en) : ""}`}
+              {pedido.ninos.length} {pedido.ninos.length === 1 ? "niño" : "niños"} · {subtitulo}
             </p>
           </div>
         </div>
@@ -190,12 +228,12 @@ function TarjetaPedido({ pedido }: { pedido: PedidoOut }) {
 
       {abierto && (
         <div className="border-t border-[#e5e5ea] flex flex-col">
-          {resumenPendiente.length > 0 && (
+          {resumenAgregado.length > 0 && (
             <div className="px-4 py-3 bg-[#f2f2f7]/50 flex flex-wrap gap-1.5 border-b border-[#e5e5ea]">
               <span className="text-[10px] font-bold text-[#8e8e93] uppercase tracking-wider self-center mr-1">
-                FALTA POR SERVIR:
+                A PREPARAR EN BLOQUE:
               </span>
-              {resumenPendiente.map(([nombre, qty]) => (
+              {resumenAgregado.map(([nombre, qty]) => (
                 <span
                   key={nombre}
                   className="px-2 py-0.5 rounded-md bg-white border border-[#e5e5ea] text-[#1c1c1e] text-[11px] font-medium"
@@ -208,7 +246,7 @@ function TarjetaPedido({ pedido }: { pedido: PedidoOut }) {
 
           <div className="divide-y divide-[#f2f2f7]">
             {pedido.ninos.map((n) => (
-              <SeccionNino key={n.id} pedidoId={pedido.id} nino={n} bloqueado={pedido.estado === "completado"} />
+              <SeccionNino key={n.id} pedidoId={pedido.id} nino={n} fase={fase} />
             ))}
           </div>
 
@@ -218,7 +256,31 @@ function TarjetaPedido({ pedido }: { pedido: PedidoOut }) {
             </p>
           )}
 
-          {pedido.estado === "pendiente" && (
+          {fase === "pendiente" && (
+            <div className="flex gap-2 p-3 border-t border-[#e5e5ea] bg-[#fafafa]">
+              <button
+                onClick={pedirBorrar}
+                className="px-3 py-2 rounded-xl bg-white text-[#FF3B30] text-sm font-medium border border-[#e5e5ea]"
+              >
+                <Trash2 size={14} className="inline -mt-0.5 mr-1" />
+                Borrar
+              </button>
+              <button
+                onClick={pedirPreparar}
+                disabled={lineasPorResolver > 0 || preparar.isPending}
+                className="flex-1 inline-flex items-center justify-center gap-2 py-2 rounded-xl bg-[#FF9500] text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChefHat size={14} />
+                {preparar.isPending
+                  ? "Marcando..."
+                  : lineasPorResolver === 0
+                    ? "Marcar preparado"
+                    : `Resuelve ${lineasPorResolver} línea${lineasPorResolver === 1 ? "" : "s"} antes`}
+              </button>
+            </div>
+          )}
+
+          {fase === "preparado" && (
             <div className="flex gap-2 p-3 border-t border-[#e5e5ea] bg-[#fafafa]">
               <button
                 onClick={pedirBorrar}
@@ -229,14 +291,15 @@ function TarjetaPedido({ pedido }: { pedido: PedidoOut }) {
               </button>
               <button
                 onClick={pedirCompletar}
-                disabled={!todasResueltas || completar.isPending}
-                className="flex-1 py-2 rounded-xl bg-[#34C759] text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled={lineasPorResolver > 0 || completar.isPending}
+                className="flex-1 inline-flex items-center justify-center gap-2 py-2 rounded-xl bg-[#34C759] text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
               >
+                <Truck size={14} />
                 {completar.isPending
-                  ? "Completando..."
-                  : todasResueltas
-                    ? "Completar pedido"
-                    : `Resuelve ${pendientesCount} línea${pendientesCount === 1 ? "" : "s"} antes`}
+                  ? "Cobrando..."
+                  : lineasPorResolver === 0
+                    ? "Completar y cobrar"
+                    : `Reparte ${lineasPorResolver} línea${lineasPorResolver === 1 ? "" : "s"} antes`}
               </button>
             </div>
           )}
@@ -251,14 +314,20 @@ function TarjetaPedido({ pedido }: { pedido: PedidoOut }) {
 function SeccionNino({
   pedidoId,
   nino,
-  bloqueado,
+  fase,
 }: {
   pedidoId: number;
   nino: PedidoNinoOut;
-  bloqueado: boolean;
+  fase: Fase;
 }) {
+  // Total mostrado: incluye lo que sigue "vivo" en la fase actual.
   const totalNino = nino.lineas
-    .filter((l) => l.estado === "entregado" || l.estado === "pendiente")
+    .filter((l) =>
+      l.estado === "pendiente" ||
+      l.estado === "listo" ||
+      l.estado === "reemplazado" ||
+      l.estado === "entregado"
+    )
     .reduce((s, l) => s + l.producto_precio * l.cantidad, 0);
 
   return (
@@ -272,28 +341,23 @@ function SeccionNino({
       </div>
       <ul className="divide-y divide-[#f2f2f7]">
         {nino.lineas.map((l) => (
-          <FilaLinea
-            key={l.id}
-            pedidoId={pedidoId}
-            linea={l}
-            bloqueada={bloqueado}
-          />
+          <FilaLinea key={l.id} pedidoId={pedidoId} linea={l} fase={fase} />
         ))}
       </ul>
     </div>
   );
 }
 
-// ─── Línea de pedido (con acciones) ──────────────────────────────────────
+// ─── Línea de pedido (con acciones según fase) ───────────────────────────
 
 function FilaLinea({
   pedidoId,
   linea,
-  bloqueada,
+  fase,
 }: {
   pedidoId: number;
   linea: PedidoLineaOut;
-  bloqueada: boolean;
+  fase: Fase;
 }) {
   const [editando, setEditando] = useState(false);
   const [texto, setTexto] = useState(linea.reemplazo_texto ?? "");
@@ -303,7 +367,7 @@ function FilaLinea({
     actualizar.mutate(
       { pedidoId, lineaId: linea.id, data: { estado } },
       {
-        onError: (e) => toast.error(e instanceof Error ? e.message : "Error."),
+        onError: (e) => toast.error(e instanceof ApiError ? e.message : "Error."),
       }
     );
   }
@@ -321,26 +385,44 @@ function FilaLinea({
       },
       {
         onSuccess: () => setEditando(false),
-        onError: (e) => toast.error(e instanceof Error ? e.message : "Error."),
+        onError: (e) => toast.error(e instanceof ApiError ? e.message : "Error."),
       }
     );
   }
 
+  // Acciones disponibles para esta línea en la fase actual.
+  const acciones: AccionLinea[] = (() => {
+    if (fase === "completado") return [];
+    if (fase === "pendiente") {
+      // Kiosko prepara.
+      if (linea.estado === "pendiente") {
+        return ["listo", "reemplazar", "descartado"];
+      }
+      // Ya resuelta por kiosko: solo permitir volver a pendiente.
+      return ["volver"];
+    }
+    // fase === "preparado": monitor reparte.
+    if (linea.estado === "listo" || linea.estado === "reemplazado") {
+      return ["entregado", "descartado"];
+    }
+    if (linea.estado === "entregado" || linea.estado === "descartado") {
+      // Volver al estado anterior natural (listo) por si fue un error.
+      return ["volver_a_listo"];
+    }
+    return [];
+  })();
+
   return (
     <li className="px-4 py-3 flex flex-col gap-2">
       <div className="flex items-center gap-3">
-        <CategoriaIcon
-          categoria={null}
-          size={32}
-          fondoSolido={false}
-        />
+        <CategoriaIcon categoria={null} size={32} fondoSolido={false} />
         <div className="flex-1 min-w-0">
           <p className="text-[14px] text-[#1c1c1e] truncate">
             <span className="font-semibold tabular-nums">{linea.cantidad}×</span>{" "}
             {linea.producto_nombre}
           </p>
           <p className="text-[11px] text-[#8e8e93]">
-            {eur(linea.producto_precio)} c/u · {eur(linea.producto_precio * linea.cantidad)}{" "}
+            {eur(linea.producto_precio)} c/u · {eur(linea.producto_precio * linea.cantidad)}
             {linea.estado === "reemplazado" && linea.reemplazo_texto && (
               <span className="text-[#FF9500]"> · → {linea.reemplazo_texto}</span>
             )}
@@ -349,21 +431,48 @@ function FilaLinea({
         <BadgeEstado estado={linea.estado} />
       </div>
 
-      {!bloqueada && !editando && linea.estado === "pendiente" && (
-        <div className="flex gap-2">
-          <BotonAccion onClick={() => setEstado("entregado")} icono={Check} variante="ok">
-            Entregar
-          </BotonAccion>
-          <BotonAccion onClick={() => setEditando(true)} icono={Replace} variante="warn">
-            Reemplazar
-          </BotonAccion>
-          <BotonAccion onClick={() => setEstado("descartado")} icono={X} variante="neutro">
-            Descartar
-          </BotonAccion>
+      {!editando && acciones.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          {acciones.includes("listo") && (
+            <BotonAccion onClick={() => setEstado("listo")} icono={Check} variante="ok">
+              Listo
+            </BotonAccion>
+          )}
+          {acciones.includes("reemplazar") && (
+            <BotonAccion onClick={() => setEditando(true)} icono={Replace} variante="warn">
+              Reemplazar
+            </BotonAccion>
+          )}
+          {acciones.includes("entregado") && (
+            <BotonAccion onClick={() => setEstado("entregado")} icono={Check} variante="ok">
+              Entregado
+            </BotonAccion>
+          )}
+          {acciones.includes("descartado") && (
+            <BotonAccion onClick={() => setEstado("descartado")} icono={X} variante="neutro">
+              Descartar
+            </BotonAccion>
+          )}
+          {acciones.includes("volver") && (
+            <button
+              onClick={() => setEstado("pendiente")}
+              className="text-[11px] text-[#007AFF] font-medium hover:underline"
+            >
+              Volver a pendiente
+            </button>
+          )}
+          {acciones.includes("volver_a_listo") && (
+            <button
+              onClick={() => setEstado("listo")}
+              className="text-[11px] text-[#007AFF] font-medium hover:underline"
+            >
+              Volver a listo
+            </button>
+          )}
         </div>
       )}
 
-      {!bloqueada && editando && (
+      {editando && (
         <div className="flex gap-2 items-center">
           <input
             value={texto}
@@ -392,26 +501,26 @@ function FilaLinea({
           </button>
         </div>
       )}
-
-      {!bloqueada && !editando && linea.estado !== "pendiente" && (
-        <button
-          onClick={() => setEstado("pendiente")}
-          className="self-start text-[11px] text-[#007AFF] font-medium hover:underline"
-        >
-          Volver a pendiente
-        </button>
-      )}
     </li>
   );
 }
 
+type AccionLinea =
+  | "listo"
+  | "reemplazar"
+  | "entregado"
+  | "descartado"
+  | "volver"
+  | "volver_a_listo";
+
 function BadgeEstado({ estado }: { estado: EstadoLineaPedido }) {
-  const cfg = {
+  const cfg: Record<EstadoLineaPedido, { label: string; color: string }> = {
     pendiente: { label: "Pnd", color: "bg-[#8e8e93]/15 text-[#8e8e93]" },
+    listo: { label: "Listo", color: "bg-[#5AC8FA]/20 text-[#0A84FF]" },
     entregado: { label: "Ok", color: "bg-[#34C759]/15 text-[#34C759]" },
     reemplazado: { label: "Rep", color: "bg-[#FF9500]/15 text-[#FF9500]" },
     descartado: { label: "X", color: "bg-[#FF3B30]/15 text-[#FF3B30]" },
-  } as const;
+  };
   const { label, color } = cfg[estado];
   return (
     <span className={cn("text-[10px] font-bold uppercase tracking-tight px-2 py-0.5 rounded-full shrink-0", color)}>

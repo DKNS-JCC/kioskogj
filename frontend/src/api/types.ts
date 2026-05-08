@@ -36,10 +36,12 @@ export interface ImportResultado {
   omitidos: FilaImportError[];
 }
 
-// Pedidos: el monitor del grupo crea uno por grupo, el encargado los completa.
-export type EstadoPedido = "pendiente" | "completado";
+// Pedidos: flujo en tres fases. Monitor crea (pendiente) → kiosko prepara
+// (preparado) → monitor reparte y se cobra (completado).
+export type EstadoPedido = "pendiente" | "preparado" | "completado";
 export type EstadoLineaPedido =
   | "pendiente"
+  | "listo"
   | "entregado"
   | "reemplazado"
   | "descartado";
@@ -84,8 +86,14 @@ export interface PedidoOut {
   estado: EstadoPedido;
   nota: string | null;
   creado_en: string;
+  preparado_en: string | null;
   completado_en: string | null;
   ninos: PedidoNinoOut[];
+}
+
+export interface PedidoDuplicadoDetail {
+  duplicado: true;
+  pedidos_existentes: number[];
 }
 
 export interface PedidoLineaUpdate {

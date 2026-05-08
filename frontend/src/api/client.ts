@@ -3,11 +3,13 @@ import { useAuthStore } from "../store/authStore";
 export class ApiError extends Error {
   status: number;
   codigo: string;
+  detail: unknown;
 
-  constructor(status: number, codigo: string, mensaje: string) {
+  constructor(status: number, codigo: string, mensaje: string, detail?: unknown) {
     super(mensaje);
     this.status = status;
     this.codigo = codigo;
+    this.detail = detail;
   }
 }
 
@@ -81,12 +83,13 @@ export async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promis
     // Backend devuelve { detail: "..." } o { detail: { codigo, mensaje } }.
     let codigo = "error";
     let mensaje = `Error ${respuesta.status}`;
+    let detailRaw: unknown = undefined;
     if (datos && typeof datos === "object" && "detail" in datos) {
-      const detail = (datos as { detail: unknown }).detail;
-      if (typeof detail === "string") {
-        mensaje = detail;
-      } else if (detail && typeof detail === "object") {
-        const d = detail as { codigo?: string; mensaje?: string };
+      detailRaw = (datos as { detail: unknown }).detail;
+      if (typeof detailRaw === "string") {
+        mensaje = detailRaw;
+      } else if (detailRaw && typeof detailRaw === "object") {
+        const d = detailRaw as { codigo?: string; mensaje?: string };
         codigo = d.codigo ?? codigo;
         mensaje = d.mensaje ?? mensaje;
       }
@@ -95,7 +98,7 @@ export async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promis
     if (respuesta.status === 401 && opts.requireAdminPin) {
       useAuthStore.getState().clearPin();
     }
-    throw new ApiError(respuesta.status, codigo, mensaje);
+    throw new ApiError(respuesta.status, codigo, mensaje, detailRaw);
   }
 
   return datos as T;
